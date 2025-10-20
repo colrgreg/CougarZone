@@ -16,6 +16,10 @@
     
     <main>
         <form action="/signup" method="POST">
+        <% errors.forEach(error => { %>
+            <p class="notice"><%=error %></p>
+        <% }) %>
+
         <fieldset>
             <legend>Create an Account</legend>
             <label for="username">Username:</label>
