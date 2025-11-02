@@ -6,5 +6,41 @@
     <button type="submit">Sign Up</button>
 </form>
 
-<!-- MUST HAVE type="module" -->
-<script type="module" src="/js/signup.js"></script>
+<!-- ===== Firebase CDN ===== -->
+<!-- Firebase App (required) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<!-- Firebase Auth -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
+<script>
+  // ✅ Your Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyAmps2xc43FVStBEYe1ghS-t-bO9GII1XA",
+    authDomain: "cougarzone-d6be4.firebaseapp.com",
+    projectId: "cougarzone-d6be4",
+    storageBucket: "cougarzone-d6be4.firebasestorage.app",
+    messagingSenderId: "359665792907",
+    appId: "1:359665792907:web:89b54508f29262855fa18e"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+
+  // ===== Signup JS =====
+  const signupForm = document.getElementById("signupForm");
+
+  signupForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      try {
+          await firebase.auth().createUserWithEmailAndPassword(firebase.auth(), email, password);
+          alert("Account created!");
+          window.location.href = "/login";
+      } catch (err) {
+          alert(err.message);
+      }
+  });
+</script>
