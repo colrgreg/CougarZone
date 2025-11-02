@@ -1,4 +1,37 @@
-const bcrypt = require('bcrypt');
+const express = require('express');
+const app = express();
+
+app.set('view engine', 'ejs');
+app.use(express.urlencoded({ extended: false }));
+app.use(express.static("public"));
+
+// Homepage
+app.get('/', (req, res) => {
+    res.render("homepage");
+});
+
+// Login page
+app.get('/login', (req, res) => {
+    res.render("login");
+});
+
+// Signup page
+app.get('/signup', (req, res) => {
+    res.render("signup");
+});
+
+// Protected page (Firebase will control access in frontend)
+app.get('/dashboard', (req, res) => {
+    res.render("dashboard");
+});
+
+app.listen(3000, () => {
+    console.log("Server running on http://localhost:3000");
+});
+
+
+
+/* const bcrypt = require('bcrypt');
 const express = require('express');
 const db = require('better-sqlite3')('cougarZone.db');
 db.pragma('journal_mode = WAL');
@@ -83,7 +116,7 @@ app.post('/signup', (req, res) => {
 
 app.listen(3000, () => {
     console.log("Server running on http://localhost:3000");
-});
+}); */
 
 
 // npm init -y
