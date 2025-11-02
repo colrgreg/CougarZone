@@ -3,33 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>CougarZone</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
     <header>
         <h1><a href="/">CougarZone</a></h1>
         <nav>
-        <a href="/login">Log In</a>
+            <a href="/login">Log In</a>
+            <a href="/signup">Sign Up</a>
         </nav>
     </header>
     
     <main>
-        <!-- <form action="/signup" method="POST">
-       <% errors.forEach(error => { %>
-            <p class="notice"><%=error %></p>
-        <% }) %>   -->
+        <h2>Welcome to CougarZone</h2>
+        <p>Your portal for events at the TD Arena.</p>
 
-        <fieldset>
-            <legend>Create an Account</legend>
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username">
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password">
-            <br />
-            <button type="submit">Sign Up</button>
-        </fieldset>
-        </form>
+        <a href="/signup">
+            <button>Create an Account</button>
+        </a>
     </main>
 
     <footer>
