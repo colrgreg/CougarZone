@@ -1,3 +1,5 @@
+console.log("Login JS loaded!"); 
+
 import { auth } from "./firebase.js";
 import { signInWithEmailAndPassword } from "firebase/auth";
 
@@ -8,12 +10,9 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     const password = document.getElementById("password").value;
 
     try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        console.log("Logged in:", userCredential.user);
-
-        // redirect to homepage
-        window.location.href = "/homepage";
+        await signInWithEmailAndPassword(auth, email, password);
+        window.location.href = "/dashboard";
     } catch (err) {
-        alert("Login failed: " + err.message);
+        alert(err.message);
     }
 });
