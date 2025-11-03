@@ -1,20 +1,56 @@
-<h1>Dashboard</h1>
-<p>Welcome! You're logged in ✅</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - CougarZone</title>
+</head>
+<body>
+    <h1>Welcome to your Dashboard</h1>
+    <p id="welcomeMessage"></p>
+    <button id="logoutBtn">Log Out</button>
 
-<button id="logoutBtn">Logout</button>
+    <!-- Firebase scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 
-<script type="module">
-    import { auth } from "/js/firebase.js";
-    import { onAuthStateChanged, signOut } from "firebase/auth";
+    <!-- Dashboard JS -->
+    <script>
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAmps2xc43FVStBEYe1ghS-t-bO9GII1XA",
+            authDomain: "cougarzone-d6be4.firebaseapp.com",
+            projectId: "cougarzone-d6be4",
+            storageBucket: "cougarzone-d6be4.firebasestorage.app",
+            messagingSenderId: "359665792907",
+            appId: "1:359665792907:web:89b54508f29262855fa18e"
+        };
 
-    onAuthStateChanged(auth, (user) => {
-        if (!user) {
-            // Not logged in → redirect
-            window.location.href = "/login";
-        }
-    });
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
 
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-        signOut(auth);
-    });
-</script>
+        const welcomeMessage = document.getElementById("welcomeMessage");
+        const logoutBtn = document.getElementById("logoutBtn");
+
+        // Check if user is logged in
+        firebase.auth().onAuthStateChanged(user => {
+            if (user) {
+                welcomeMessage.textContent = `Hello, ${user.email}!`;
+            } else {
+                // Redirect to login if not logged in
+                window.location.href = "/login";
+            }
+        });
+
+        // Log out
+        logoutBtn.addEventListener("click", async () => {
+            try {
+                await firebase.auth().signOut();
+                window.location.href = "/login";
+            } catch (err) {
+                alert(err.message);
+            }
+        });
+    </script>
+</body>
+</html>
