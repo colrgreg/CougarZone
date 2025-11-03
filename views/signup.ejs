@@ -290,6 +290,16 @@
             display: none;
         }
 
+        .info-message {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            display: none;
+        }
+
         .loading {
             opacity: 0.7;
             pointer-events: none;
@@ -332,6 +342,7 @@
 
             <div class="error-message" id="errorMessage"></div>
             <div class="success-message" id="successMessage"></div>
+            <div class="info-message" id="infoMessage"></div>
 
             <form id="signupForm">
                 <div class="form-group">
@@ -424,6 +435,7 @@
         const signupForm = document.getElementById("signupForm");
         const errorMessage = document.getElementById("errorMessage");
         const successMessage = document.getElementById("successMessage");
+        const infoMessage = document.getElementById("infoMessage");
         const passwordInput = document.getElementById("password");
         const passwordStrength = document.getElementById("passwordStrength");
 
@@ -459,6 +471,7 @@
             errorMessage.textContent = message;
             errorMessage.style.display = "block";
             successMessage.style.display = "none";
+            infoMessage.style.display = "none";
             setTimeout(() => {
                 errorMessage.style.display = "none";
             }, 5000);
@@ -468,6 +481,14 @@
             successMessage.textContent = message;
             successMessage.style.display = "block";
             errorMessage.style.display = "none";
+            infoMessage.style.display = "none";
+        }
+
+        function showInfo(message) {
+            infoMessage.textContent = message;
+            infoMessage.style.display = "block";
+            errorMessage.style.display = "none";
+            successMessage.style.display = "none";
         }
 
         signupForm.addEventListener("submit", async (e) => {
@@ -494,12 +515,26 @@
             submitBtn.textContent = 'Creating Account...';
             
             try {
-                await firebase.auth().createUserWithEmailAndPassword(email, password);
-                showSuccess("Account created successfully! Redirecting...");
+                // Create user account
+                const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+                const user = userCredential.user;
                 
+                // Send email verification
+                await user.sendEmailVerification();
+                
+                // Sign out the user so they can't access the dashboard
+                await firebase.auth().signOut();
+                
+                showSuccess("Account created! Please check your email to verify your account before logging in.");
+                
+                // Clear form
+                signupForm.reset();
+                
+                // Redirect to login after 4 seconds
                 setTimeout(() => {
                     window.location.href = "/login";
-                }, 2000);
+                }, 4000);
+                
             } catch (err) {
                 submitBtn.classList.remove('loading');
                 submitBtn.textContent = 'Create Account';
