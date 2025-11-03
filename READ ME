@@ -1,0 +1,11 @@
+To run system: input "node server.js" into terminal
+
+Testing Documentation
+Essentially, we just used end to end user testing. 
+With TDD, we came up with tests.  
+For example,  for the register function, the test case was "new user registered and logged in Firestore"
+We then implemented this function and made sure it worked.
+Using end to end testing, we ran through the main functions of our system: register,  log in, purchase ticket, etc.
+
+The recent "update" commits highlight sections of code that we were developing, testing, and making sure they functioned simultaneously.  
+After we saw that they functioned, they were committed.
