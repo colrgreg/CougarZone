@@ -205,6 +205,11 @@
             background-color: var(--primary-hover);
         }
 
+        .btn-primary:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
         .btn-secondary {
             background-color: var(--border-color);
             color: var(--text-color);
@@ -335,6 +340,27 @@
             margin-bottom: 1rem;
         }
 
+        /* Loading State */
+        .loading-spinner {
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .spinner {
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .header {
@@ -401,10 +427,9 @@
         <div class="tab-content" id="tickets-tab">
             <h2>My Tickets</h2>
             <div class="tickets-list" id="ticketsList">
-                <div class="empty-state">
-                    <div class="empty-state-icon">🎫</div>
-                    <h3>No tickets yet</h3>
-                    <p>Browse events and purchase tickets to see them here</p>
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p>Loading tickets...</p>
                 </div>
             </div>
         </div>
@@ -440,6 +465,7 @@
     <!-- Firebase Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     
     <script>
         // Firebase config
@@ -453,6 +479,7 @@
         };
         
         firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
         // Sample events data
         const sampleEvents = [
@@ -513,11 +540,19 @@
         ];
 
         let currentUser = null;
-        let userTickets = [];
 
         // Auth state observer
         firebase.auth().onAuthStateChanged(user => {
             if (user) {
+                // Check if email is verified
+                if (!user.emailVerified) {
+                    // Sign out and redirect to login
+                    firebase.auth().signOut();
+                    alert("Please verify your email before accessing the dashboard. Check your inbox for the verification link.");
+                    window.location.href = "/login";
+                    return;
+                }
+                
                 currentUser = user;
                 const email = user.email;
                 const initial = email.charAt(0).toUpperCase();
@@ -551,7 +586,7 @@
                         <div class="event-date">📅 ${event.date} at ${event.time}</div>
                         <div class="event-location">📍 ${event.location}</div>
                         <div class="event-price">$${event.price.toFixed(2)}</div>
-                        <button class="btn btn-primary btn-full" onclick="purchaseTicket(${event.id})">
+                        <button class="btn btn-primary btn-full" onclick="purchaseTicket(${event.id})" id="btn-${event.id}">
                             Purchase Ticket
                         </button>
                     </div>
@@ -560,68 +595,107 @@
             });
         }
 
-        // Purchase ticket
-        function purchaseTicket(eventId) {
+        // Purchase ticket and save to Firestore
+        async function purchaseTicket(eventId) {
             const event = sampleEvents.find(e => e.id === eventId);
-            if (!event) return;
+            if (!event || !currentUser) return;
 
-            const ticket = {
-                id: Date.now(),
-                eventId: event.id,
-                eventTitle: event.title,
-                eventDate: event.date,
-                eventTime: event.time,
-                price: event.price,
-                purchaseDate: new Date().toISOString(),
-                status: 'active'
-            };
+            const btn = document.getElementById(`btn-${eventId}`);
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
 
-            userTickets.push(ticket);
-            loadUserTickets();
-            
-            alert(`Ticket purchased for ${event.title}!`);
-            switchTab('tickets');
+            try {
+                const ticket = {
+                    userId: currentUser.uid,
+                    eventId: event.id,
+                    eventTitle: event.title,
+                    eventDate: event.date,
+                    eventTime: event.time,
+                    eventEmoji: event.emoji,
+                    eventLocation: event.location,
+                    price: event.price,
+                    purchaseDate: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'active'
+                };
+
+                // Save ticket to Firestore
+                await db.collection('tickets').add(ticket);
+                
+                alert(`Ticket purchased for ${event.title}!`);
+                switchTab('tickets');
+                loadUserTickets();
+            } catch (error) {
+                console.error("Error purchasing ticket:", error);
+                alert("Failed to purchase ticket. Please try again.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Purchase Ticket';
+            }
         }
 
-        // Load user tickets
-        function loadUserTickets() {
+        // Load user tickets from Firestore
+        async function loadUserTickets() {
             const ticketsList = document.getElementById('ticketsList');
             
-            if (userTickets.length === 0) {
+            if (!currentUser) return;
+
+            try {
+                const snapshot = await db.collection('tickets')
+                    .where('userId', '==', currentUser.uid)
+                    .orderBy('purchaseDate', 'desc')
+                    .get();
+
+                if (snapshot.empty) {
+                    ticketsList.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🎫</div>
+                            <h3>No tickets yet</h3>
+                            <p>Browse events and purchase tickets to see them here</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                ticketsList.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const ticket = doc.data();
+                    const purchaseDate = ticket.purchaseDate ? ticket.purchaseDate.toDate() : new Date();
+                    
+                    const ticketCard = document.createElement('div');
+                    ticketCard.className = 'ticket-card';
+                    ticketCard.innerHTML = `
+                        <div class="ticket-info">
+                            <h3>${ticket.eventEmoji} ${ticket.eventTitle}</h3>
+                            <p style="color: var(--text-light);">
+                                📅 ${ticket.eventDate} at ${ticket.eventTime}
+                            </p>
+                            <p style="color: var(--text-light);">
+                                📍 ${ticket.eventLocation}
+                            </p>
+                            <p style="color: var(--text-light); font-size: 0.9rem;">
+                                Purchased: ${purchaseDate.toLocaleDateString()}
+                            </p>
+                            <span class="ticket-status ${ticket.status}">${ticket.status.toUpperCase()}</span>
+                        </div>
+                        <div>
+                            <p style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color);">
+                                $${ticket.price.toFixed(2)}
+                            </p>
+                            <button class="btn btn-secondary" style="margin-top: 0.5rem;">View QR Code</button>
+                        </div>
+                    `;
+                    ticketsList.appendChild(ticketCard);
+                });
+            } catch (error) {
+                console.error("Error loading tickets:", error);
                 ticketsList.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">🎫</div>
-                        <h3>No tickets yet</h3>
-                        <p>Browse events and purchase tickets to see them here</p>
+                        <div class="empty-state-icon">⚠️</div>
+                        <h3>Error loading tickets</h3>
+                        <p>Please refresh the page to try again</p>
                     </div>
                 `;
-                return;
             }
-
-            ticketsList.innerHTML = '';
-            userTickets.forEach(ticket => {
-                const ticketCard = document.createElement('div');
-                ticketCard.className = 'ticket-card';
-                ticketCard.innerHTML = `
-                    <div class="ticket-info">
-                        <h3>${ticket.eventTitle}</h3>
-                        <p style="color: var(--text-light);">
-                            📅 ${ticket.eventDate} at ${ticket.eventTime}
-                        </p>
-                        <p style="color: var(--text-light);">
-                            Purchased: ${new Date(ticket.purchaseDate).toLocaleDateString()}
-                        </p>
-                        <span class="ticket-status ${ticket.status}">${ticket.status.toUpperCase()}</span>
-                    </div>
-                    <div>
-                        <p style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color);">
-                            $${ticket.price.toFixed(2)}
-                        </p>
-                        <button class="btn btn-secondary" style="margin-top: 0.5rem;">View QR Code</button>
-                    </div>
-                `;
-                ticketsList.appendChild(ticketCard);
-            });
         }
 
         // Tab switching
