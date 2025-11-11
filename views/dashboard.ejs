@@ -172,7 +172,7 @@
             color: var(--text-color);
         }
 
-        .event-date, .event-location {
+        .event-date, .event-location, .event-description {
             color: var(--text-light);
             font-size: 0.9rem;
             margin-bottom: 0.25rem;
@@ -269,6 +269,32 @@
         .ticket-status.used {
             background-color: #fce4ec;
             color: #c2185b;
+        }
+
+        .ticket-status.expired {
+            background-color: #fff3e0;
+            color: #e65100;
+        }
+
+        .ticket-type-tab {
+            transition: all 0.3s;
+        }
+
+        .ticket-type-tab:hover {
+            color: var(--primary-color);
+        }
+
+        .ticket-type-tab.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color) !important;
+        }
+
+        .ticket-type-content {
+            display: none;
+        }
+
+        .ticket-type-content.active {
+            display: block;
         }
 
         /* Profile Section */
@@ -406,6 +432,7 @@
         <div class="nav-tab active" data-tab="events">Browse Events</div>
         <div class="nav-tab" data-tab="tickets">My Tickets</div>
         <div class="nav-tab" data-tab="profile">Profile</div>
+        <div class="nav-tab" data-tab="admin" id="adminTab" style="display: none;">Admin Panel</div>
     </nav>
 
     <!-- Main Content -->
@@ -426,10 +453,34 @@
         <!-- My Tickets Tab -->
         <div class="tab-content" id="tickets-tab">
             <h2>My Tickets</h2>
-            <div class="tickets-list" id="ticketsList">
-                <div class="loading-spinner">
-                    <div class="spinner"></div>
-                    <p>Loading tickets...</p>
+            
+            <!-- Ticket Type Tabs -->
+            <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 2px solid var(--border-color);">
+                <div class="ticket-type-tab active" data-type="upcoming" style="padding: 1rem 2rem; cursor: pointer; border-bottom: 3px solid var(--primary-color); font-weight: 600; color: var(--primary-color);">
+                    Upcoming Events
+                </div>
+                <div class="ticket-type-tab" data-type="past" style="padding: 1rem 2rem; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 600; color: var(--text-light);">
+                    Past Events
+                </div>
+            </div>
+
+            <!-- Upcoming Tickets -->
+            <div class="ticket-type-content active" id="upcoming-tickets">
+                <div class="tickets-list" id="upcomingTicketsList">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Loading tickets...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Past Tickets -->
+            <div class="ticket-type-content" id="past-tickets" style="display: none;">
+                <div class="tickets-list" id="pastTicketsList">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Loading tickets...</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -460,6 +511,60 @@
                 </div>
             </div>
         </div>
+
+        <!-- Admin Panel Tab -->
+        <div class="tab-content" id="admin-tab">
+            <h2>Admin Panel - Event Management</h2>
+            
+            <!-- Create Event Form -->
+            <div style="background: var(--card-bg); padding: 2rem; border-radius: 12px; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <h3 style="margin-bottom: 1.5rem;">Create New Event</h3>
+                <form id="createEventForm">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Event Title</label>
+                            <input type="text" id="eventTitle" placeholder="Basketball Championship" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Emoji</label>
+                            <input type="text" id="eventEmoji" placeholder="🏀" maxlength="2" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Event Date</label>
+                            <input type="date" id="eventDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Event Time</label>
+                            <input type="time" id="eventTime" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Location</label>
+                            <input type="text" id="eventLocation" placeholder="TD Arena" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Price ($)</label>
+                            <input type="number" id="eventPrice" placeholder="25.00" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Event Description</label>
+                            <input type="text" id="eventDescription" placeholder="Tell us more!" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Create Event</button>
+                </form>
+            </div>
+
+            <!-- Existing Events List -->
+            <div style="background: var(--card-bg); padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <h3 style="margin-bottom: 1.5rem;">Manage Existing Events</h3>
+                <div id="adminEventsList">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Loading events...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Firebase Scripts -->
@@ -481,63 +586,12 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Sample events data
-        const sampleEvents = [
-            {
-                id: 1,
-                title: "Basketball Championship",
-                date: "2025-11-15",
-                time: "7:00 PM",
-                location: "TD Arena",
-                price: 25.00,
-                emoji: "🏀"
-            },
-            {
-                id: 2,
-                title: "Live Concert Series",
-                date: "2025-11-22",
-                time: "8:00 PM",
-                location: "TD Arena",
-                price: 45.00,
-                emoji: "🎸"
-            },
-            {
-                id: 3,
-                title: "College Football Game",
-                date: "2025-11-29",
-                time: "6:30 PM",
-                location: "TD Arena",
-                price: 30.00,
-                emoji: "🏈"
-            },
-            {
-                id: 4,
-                title: "Comedy Night",
-                date: "2025-12-05",
-                time: "9:00 PM",
-                location: "TD Arena",
-                price: 35.00,
-                emoji: "🎭"
-            },
-            {
-                id: 5,
-                title: "Volleyball Tournament",
-                date: "2025-12-10",
-                time: "5:00 PM",
-                location: "TD Arena",
-                price: 20.00,
-                emoji: "🏐"
-            },
-            {
-                id: 6,
-                title: "Guest Speaker Event",
-                date: "2025-12-15",
-                time: "7:30 PM",
-                location: "TD Arena",
-                price: 15.00,
-                emoji: "🎤"
-            }
-        ];
+        // Admin email
+        const ADMIN_EMAIL = "bclinchuck@gmail.com";
+        let isAdmin = false;
+
+        // Sample events data (will be replaced with Firestore data)
+        let sampleEvents = [];
 
         let currentUser = null;
 
@@ -557,6 +611,12 @@
                 const email = user.email;
                 const initial = email.charAt(0).toUpperCase();
                 
+                // Check if user is admin
+                isAdmin = (email === ADMIN_EMAIL);
+                if (isAdmin) {
+                    document.getElementById('adminTab').style.display = 'block';
+                }
+                
                 document.getElementById('userEmail').textContent = email;
                 document.getElementById('userAvatar').textContent = initial;
                 document.getElementById('profileAvatar').textContent = initial;
@@ -566,33 +626,71 @@
                 
                 loadEvents();
                 loadUserTickets();
+                
+                if (isAdmin) {
+                    loadAdminEvents();
+                }
             } else {
                 window.location.href = "/login";
             }
         });
 
-        // Load events
-        function loadEvents() {
+        // Load events from Firestore
+        async function loadEvents() {
             const eventsGrid = document.getElementById('eventsGrid');
-            eventsGrid.innerHTML = '';
+            eventsGrid.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading events...</p></div>';
             
-            sampleEvents.forEach(event => {
-                const eventCard = document.createElement('div');
-                eventCard.className = 'event-card';
-                eventCard.innerHTML = `
-                    <div class="event-image">${event.emoji}</div>
-                    <div class="event-content">
-                        <div class="event-title">${event.title}</div>
-                        <div class="event-date">📅 ${event.date} at ${event.time}</div>
-                        <div class="event-location">📍 ${event.location}</div>
-                        <div class="event-price">$${event.price.toFixed(2)}</div>
-                        <button class="btn btn-primary btn-full" onclick="purchaseTicket(${event.id})" id="btn-${event.id}">
-                            Purchase Ticket
-                        </button>
+            try {
+                const snapshot = await db.collection('events')
+                    .where('date', '>=', new Date().toISOString().split('T')[0])
+                    .orderBy('date', 'asc')
+                    .get();
+
+                if (snapshot.empty) {
+                    eventsGrid.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📅</div>
+                            <h3>No upcoming events</h3>
+                            <p>Check back later for new events</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                eventsGrid.innerHTML = '';
+                sampleEvents = [];
+                
+                snapshot.forEach(doc => {
+                    const event = { id: doc.id, ...doc.data() };
+                    sampleEvents.push(event);
+                    
+                    const eventCard = document.createElement('div');
+                    eventCard.className = 'event-card';
+                    eventCard.innerHTML = `
+                        <div class="event-image">${event.emoji}</div>
+                        <div class="event-content">
+                            <div class="event-title">${event.title}</div>
+                            <div class="event-date">📅 ${event.date} at ${event.time}</div>
+                            <div class="event-location">📍 ${event.location}</div>
+                            <div class="event-description">❗ ${event.description}</div>
+                            <div class="event-price">${parseFloat(event.price).toFixed(2)}</div>
+                            <button class="btn btn-primary btn-full" onclick="purchaseTicket('${doc.id}')" id="btn-${doc.id}">
+                                Purchase Ticket
+                            </button>
+                        </div>
+                    `;
+                    eventsGrid.appendChild(eventCard);
+                });
+            } catch (error) {
+                console.error("Error loading events:", error);
+                eventsGrid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <h3>Error loading events</h3>
+                        <p>Please refresh the page to try again</p>
                     </div>
                 `;
-                eventsGrid.appendChild(eventCard);
-            });
+            }
         }
 
         // Purchase ticket and save to Firestore
@@ -613,7 +711,8 @@
                     eventTime: event.time,
                     eventEmoji: event.emoji,
                     eventLocation: event.location,
-                    price: event.price,
+                    eventDescription: event.description,
+                    price: parseFloat(event.price),
                     purchaseDate: firebase.firestore.FieldValue.serverTimestamp(),
                     status: 'active'
                 };
@@ -635,7 +734,8 @@
 
         // Load user tickets from Firestore
         async function loadUserTickets() {
-            const ticketsList = document.getElementById('ticketsList');
+            const upcomingList = document.getElementById('upcomingTicketsList');
+            const pastList = document.getElementById('pastTicketsList');
             
             if (!currentUser) return;
 
@@ -646,49 +746,87 @@
                     .get();
 
                 if (snapshot.empty) {
-                    ticketsList.innerHTML = `
+                    upcomingList.innerHTML = `
                         <div class="empty-state">
                             <div class="empty-state-icon">🎫</div>
                             <h3>No tickets yet</h3>
                             <p>Browse events and purchase tickets to see them here</p>
                         </div>
                     `;
+                    pastList.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📅</div>
+                            <h3>No past events</h3>
+                            <p>Expired tickets will appear here</p>
+                        </div>
+                    `;
                     return;
                 }
 
-                ticketsList.innerHTML = '';
+                const upcomingTickets = [];
+                const pastTickets = [];
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Set to midnight for accurate date comparison
+
                 snapshot.forEach(doc => {
                     const ticket = doc.data();
-                    const purchaseDate = ticket.purchaseDate ? ticket.purchaseDate.toDate() : new Date();
+                    // Parse the event date and set to midnight for comparison
+                    const eventDate = new Date(ticket.eventDate + 'T00:00:00');
+                    eventDate.setHours(0, 0, 0, 0);
                     
-                    const ticketCard = document.createElement('div');
-                    ticketCard.className = 'ticket-card';
-                    ticketCard.innerHTML = `
-                        <div class="ticket-info">
-                            <h3>${ticket.eventEmoji} ${ticket.eventTitle}</h3>
-                            <p style="color: var(--text-light);">
-                                📅 ${ticket.eventDate} at ${ticket.eventTime}
-                            </p>
-                            <p style="color: var(--text-light);">
-                                📍 ${ticket.eventLocation}
-                            </p>
-                            <p style="color: var(--text-light); font-size: 0.9rem;">
-                                Purchased: ${purchaseDate.toLocaleDateString()}
-                            </p>
-                            <span class="ticket-status ${ticket.status}">${ticket.status.toUpperCase()}</span>
-                        </div>
-                        <div>
-                            <p style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color);">
-                                $${ticket.price.toFixed(2)}
-                            </p>
-                            <button class="btn btn-secondary" style="margin-top: 0.5rem;">View QR Code</button>
+                    // Check if event date has passed (before today)
+                    if (eventDate < today) {
+                        ticket.status = 'expired';
+                        pastTickets.push(ticket);
+                    } else {
+                        // Event is today or in the future
+                        ticket.status = 'active';
+                        upcomingTickets.push(ticket);
+                    }
+                });
+
+                // Display upcoming tickets
+                if (upcomingTickets.length === 0) {
+                    upcomingList.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🎫</div>
+                            <h3>No upcoming events</h3>
+                            <p>Browse events and purchase tickets to see them here</p>
                         </div>
                     `;
-                    ticketsList.appendChild(ticketCard);
-                });
+                } else {
+                    upcomingList.innerHTML = '';
+                    upcomingTickets.forEach(ticket => {
+                        upcomingList.appendChild(createTicketCard(ticket));
+                    });
+                }
+
+                // Display past tickets
+                if (pastTickets.length === 0) {
+                    pastList.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📅</div>
+                            <h3>No past events</h3>
+                            <p>Expired tickets will appear here</p>
+                        </div>
+                    `;
+                } else {
+                    pastList.innerHTML = '';
+                    pastTickets.forEach(ticket => {
+                        pastList.appendChild(createTicketCard(ticket));
+                    });
+                }
+
             } catch (error) {
                 console.error("Error loading tickets:", error);
-                ticketsList.innerHTML = `
+                upcomingList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <h3>Error loading tickets</h3>
+                        <p>Please refresh the page to try again</p>
+                    </div>
+                `;
+                pastList.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">⚠️</div>
                         <h3>Error loading tickets</h3>
@@ -697,6 +835,63 @@
                 `;
             }
         }
+
+        // Create ticket card element
+        function createTicketCard(ticket) {
+            const purchaseDate = ticket.purchaseDate ? ticket.purchaseDate.toDate() : new Date();
+            
+            const ticketCard = document.createElement('div');
+            ticketCard.className = 'ticket-card';
+            ticketCard.innerHTML = `
+                <div class="ticket-info">
+                    <h3>${ticket.eventEmoji} ${ticket.eventTitle}</h3>
+                    <p style="color: var(--text-light);">
+                        📅 ${ticket.eventDate} at ${ticket.eventTime}
+                    </p>
+                    <p style="color: var(--text-light);">
+                        📍 ${ticket.eventLocation}
+                    </p>
+                    <p style="color: var(--text-light);">
+                        ❗ ${ticket.eventDescription}
+                    <p style="color: var(--text-light); font-size: 0.9rem;">
+                        Purchased: ${purchaseDate.toLocaleDateString()}
+                    </p>
+                    <span class="ticket-status ${ticket.status}">${ticket.status.toUpperCase()}</span>
+                </div>
+                <div>
+                    <p style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color);">
+                        ${ticket.price.toFixed(2)}
+                    </p>
+                    ${ticket.status === 'active' ? '<button class="btn btn-secondary" style="margin-top: 0.5rem;">View QR Code</button>' : ''}
+                </div>
+            `;
+            return ticketCard;
+        }
+
+        // Ticket type tab switching
+        document.querySelectorAll('.ticket-type-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const type = tab.getAttribute('data-type');
+                
+                // Update tabs
+                document.querySelectorAll('.ticket-type-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.style.borderBottomColor = 'transparent';
+                    t.style.color = 'var(--text-light)';
+                });
+                tab.classList.add('active');
+                tab.style.borderBottomColor = 'var(--primary-color)';
+                tab.style.color = 'var(--primary-color)';
+                
+                // Update content
+                document.querySelectorAll('.ticket-type-content').forEach(c => {
+                    c.classList.remove('active');
+                    c.style.display = 'none';
+                });
+                document.getElementById(`${type}-tickets`).classList.add('active');
+                document.getElementById(`${type}-tickets`).style.display = 'block';
+            });
+        });
 
         // Tab switching
         document.querySelectorAll('.nav-tab').forEach(tab => {
@@ -733,6 +928,116 @@
                 alert('Please enter a display name');
             }
         });
+
+        // Admin: Load events for management
+        async function loadAdminEvents() {
+            const adminList = document.getElementById('adminEventsList');
+            
+            try {
+                const snapshot = await db.collection('events')
+                    .orderBy('date', 'asc')
+                    .get();
+
+                if (snapshot.empty) {
+                    adminList.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📅</div>
+                            <h3>No events created yet</h3>
+                            <p>Create your first event above</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                adminList.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const event = doc.data();
+                    const eventItem = document.createElement('div');
+                    eventItem.style.cssText = 'background: var(--bg-color); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;';
+                    eventItem.innerHTML = `
+                        <div>
+                            <h4>${event.emoji} ${event.title}</h4>
+                            <p style="color: var(--text-light); font-size: 0.9rem;">
+                                📅 ${event.date} at ${event.time} | 📍 ${event.location} | ${parseFloat(event.price).toFixed(2)}
+                            </p>
+                        </div>
+                        <button class="btn btn-danger" onclick="deleteEvent('${doc.id}', '${event.title}')">Delete</button>
+                    `;
+                    adminList.appendChild(eventItem);
+                });
+            } catch (error) {
+                console.error("Error loading admin events:", error);
+                adminList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <h3>Error loading events</h3>
+                        <p>Please refresh the page</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Admin: Create event
+        document.getElementById('createEventForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!isAdmin) {
+                alert('Unauthorized');
+                return;
+            }
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating...';
+
+            try {
+                const eventData = {
+                    title: document.getElementById('eventTitle').value,
+                    emoji: document.getElementById('eventEmoji').value,
+                    date: document.getElementById('eventDate').value,
+                    time: document.getElementById('eventTime').value,
+                    location: document.getElementById('eventLocation').value,
+                    description: document.getElementById('eventDescription').value,
+                    price: parseFloat(document.getElementById('eventPrice').value),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                await db.collection('events').add(eventData);
+                
+                alert('Event created successfully!');
+                e.target.reset();
+                loadEvents();
+                loadAdminEvents();
+            } catch (error) {
+                console.error("Error creating event:", error);
+                alert('Failed to create event. Please try again.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create Event';
+            }
+        });
+
+        // Admin: Delete event
+        async function deleteEvent(eventId, eventTitle) {
+            if (!isAdmin) {
+                alert('Unauthorized');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete "${eventTitle}"?`)) {
+                return;
+            }
+
+            try {
+                await db.collection('events').doc(eventId).delete();
+                alert('Event deleted successfully!');
+                loadEvents();
+                loadAdminEvents();
+            } catch (error) {
+                console.error("Error deleting event:", error);
+                alert('Failed to delete event. Please try again.');
+            }
+        }
     </script>
 </body>
 </html>
