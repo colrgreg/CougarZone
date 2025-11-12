@@ -609,6 +609,7 @@
                 
                 currentUser = user;
                 const email = user.email;
+                const firstName = user.firstName;
                 const initial = email.charAt(0).toUpperCase();
                 
                 // Check if user is admin
@@ -618,11 +619,12 @@
                 }
                 
                 document.getElementById('userEmail').textContent = email;
+                document.getElementById('firstName').textContent = firstName;
                 document.getElementById('userAvatar').textContent = initial;
                 document.getElementById('profileAvatar').textContent = initial;
                 document.getElementById('profileEmail').textContent = email;
                 document.getElementById('emailInput').value = email;
-                document.getElementById('welcomeMessage').textContent = `Welcome back, ${email}!`;
+                document.getElementById('welcomeMessage').textContent = `Welcome back, ${firstName}!`;
                 
                 loadEvents();
                 loadUserTickets();
