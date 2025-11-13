@@ -481,7 +481,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Admin Panel Styles */
         .admin-form {
             background: var(--card-bg);
             padding: 2rem;
@@ -558,6 +557,7 @@
     <nav class="nav-tabs">
         <div class="nav-tab active" data-tab="events">Browse Events</div>
         <div class="nav-tab" data-tab="tickets">My Tickets</div>
+        <div class="nav-tab" data-tab="requests">Request Event</div>
         <div class="nav-tab" data-tab="profile">Profile</div>
         <div class="nav-tab" id="adminTab" data-tab="admin" style="display: none;">Admin Panel</div>
     </nav>
@@ -608,6 +608,71 @@
             </div>
         </div>
 
+        <!-- Request Event Tab -->
+        <div class="tab-content" id="requests-tab">
+            <div class="welcome-section">
+                <h2>Request an Event</h2>
+                <p>Don't see an event you want? Submit a request and our admins will review it!</p>
+            </div>
+
+            <div style="max-width: 600px; margin: 0 auto;">
+                <div class="admin-form">
+                    <h3>Event Request Form</h3>
+                    <form id="requestEventForm">
+                        <div class="form-group">
+                            <label>Event Title</label>
+                            <input type="text" id="requestEventTitle" placeholder="e.g., Concert by Taylor Swift" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Event Description</label>
+                            <input type="text" id="requestEventDescription" placeholder="Tell us about this event" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Suggested Date</label>
+                            <input type="date" id="requestEventDate" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Suggested Time</label>
+                            <input type="time" id="requestEventTime" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Suggested Location</label>
+                            <input type="text" id="requestEventLocation" placeholder="e.g., TD Arena" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Suggested Price ($)</label>
+                            <input type="number" id="requestEventPrice" placeholder="25.00" step="0.01" min="0" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Suggested Emoji</label>
+                            <input type="text" id="requestEventEmoji" placeholder="🎬" maxlength="2" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Why do you want this event?</label>
+                            <input type="text" id="requestEventReason" placeholder="Help us understand why this event is important" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-full">Submit Request</button>
+                    </form>
+                </div>
+
+                <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Your Request History</h3>
+                <div id="requestsHistory">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Loading requests...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Profile Tab -->
         <div class="tab-content" id="profile-tab">
             <div style="max-width: 600px; margin: 0 auto;">
@@ -628,6 +693,16 @@
         <!-- Admin Tab -->
         <div class="tab-content" id="admin-tab">
             <h2>Admin Panel - Event Management</h2>
+            
+            <div class="admin-events-list" style="margin-bottom: 2rem;">
+                <h3 style="margin-bottom: 1.5rem;">📋 Event Requests</h3>
+                <div id="adminRequestsList">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Loading requests...</p>
+                    </div>
+                </div>
+            </div>
             
             <div class="admin-form">
                 <h3>Create New Event</h3>
@@ -769,7 +844,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode.js/1.5.3/qrcode.min.js"></script>
 
     <script>
         const firebaseConfig = {
@@ -790,6 +864,16 @@
         let currentCheckoutEvent = null;
         let userFirstName = '';
 
+        // Format time to 12-hour format
+        function formatTime12Hour(time24) {
+            if (!time24) return 'N/A';
+            const [hours, minutes] = time24.split(':');
+            let hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            hour = hour % 12 || 12;
+            return `${hour}:${minutes} ${ampm}`;
+        }
+
         firebase.auth().onAuthStateChanged(user => {
             if (user) {
                 if (!user.emailVerified) {
@@ -803,14 +887,12 @@
                 const email = user.email;
                 const initial = email.charAt(0).toUpperCase();
 
-                // Check if admin
                 isAdmin = (email === ADMIN_EMAIL);
                 if (isAdmin) {
                     document.getElementById('adminTab').style.display = 'block';
                     loadAdminEvents();
                 }
 
-                // Load user data from Firestore
                 loadUserData(user.uid, email, initial);
 
                 document.getElementById('userEmail').textContent = email;
@@ -819,6 +901,11 @@
 
                 loadEvents();
                 loadUserTickets();
+                loadUserEventRequests();
+                
+                if (isAdmin) {
+                    loadAdminEventRequests();
+                }
             } else {
                 window.location.href = "/login";
             }
@@ -834,7 +921,6 @@
                     document.getElementById('profileName').textContent = `${userFirstName}'s Profile`;
                     document.getElementById('welcomeMessage').textContent = `Welcome back, ${userFirstName}!`;
                 } else {
-                    // Fallback if no user doc
                     document.getElementById('welcomeMessage').textContent = `Welcome back, ${email}!`;
                 }
             } catch (error) {
@@ -869,10 +955,10 @@
                         <div class="event-image">${event.emoji}</div>
                         <div class="event-content">
                             <div class="event-title">${event.title}</div>
-                            <div class="event-date">📅 ${event.date} at ${event.time}</div>
+                            <div class="event-date">📅 ${event.date} at ${formatTime12Hour(event.time)}</div>
                             <div class="event-location">📍 ${event.location}</div>
                             <div class="event-description">❗ ${event.description}</div>
-                            <div class="event-price">$${parseFloat(event.price).toFixed(2)}</div>
+                            <div class="event-price">${parseFloat(event.price).toFixed(2)}</div>
                             <div class="attendees-info" id="attendees-${doc.id}" onclick="showAttendees('${doc.id}', '${event.title}')">
                                 Loading attendees...
                             </div>
@@ -929,9 +1015,8 @@
                 }
 
                 attendeesList.innerHTML = '';
-                const attendeeMap = new Map(); // userId -> { name, ticketCount }
+                const attendeeMap = new Map();
 
-                // Count tickets per user
                 snapshot.forEach(doc => {
                     const ticket = doc.data();
                     if (ticket.userId) {
@@ -943,26 +1028,16 @@
                     }
                 });
 
-                console.log('Attendee Map before fetch:', attendeeMap);
-
-                // Fetch user data for all attendees
                 for (const [userId, userData] of attendeeMap) {
-                    console.log('Fetching user data for:', userId);
                     try {
                         const userDoc = await db.collection('users').doc(userId).get();
-                        console.log('User doc exists:', userDoc.exists);
-                        console.log('User doc data:', userDoc.data());
-                        
                         if (userDoc.exists) {
                             const userDataFromDb = userDoc.data();
                             const firstName = userDataFromDb.firstName || '';
                             const lastName = userDataFromDb.lastName || '';
                             const fullName = `${firstName} ${lastName}`.trim();
-                            
-                            console.log('Full name:', fullName);
                             userData.name = fullName || 'User';
                         } else {
-                            console.log('User doc does not exist');
                             userData.name = 'User';
                         }
                     } catch (error) {
@@ -971,9 +1046,6 @@
                     }
                 }
 
-                console.log('Attendee Map after fetch:', attendeeMap);
-
-                // Display attendees
                 attendeeMap.forEach((userData, userId) => {
                     const initial = userData.name.charAt(0).toUpperCase();
                     const attendeeCard = document.createElement('div');
@@ -1002,7 +1074,7 @@
                     currentCheckoutEvent = event;
 
                     document.getElementById('checkoutEventTitle').textContent = event.title;
-                    document.getElementById('checkoutEventDate').textContent = `${event.date} at ${event.time}`;
+                    document.getElementById('checkoutEventDate').textContent = `${event.date} at ${formatTime12Hour(event.time)}`;
                     const price = parseFloat(event.price).toFixed(2);
                     document.getElementById('checkoutPrice').textContent = `${price}`;
                     document.getElementById('checkoutTotal').textContent = `${price}`;
@@ -1143,7 +1215,7 @@
                 <div class="ticket-info">
                     <h3>${ticket.eventEmoji} ${ticket.eventTitle}</h3>
                     <p style="color: var(--text-light);">
-                        📅 ${ticket.eventDate} at ${ticket.eventTime}
+                        📅 ${ticket.eventDate} at ${formatTime12Hour(ticket.eventTime)}
                     </p>
                     <p style="color: var(--text-light);">
                         📍 ${ticket.eventLocation}
@@ -1167,16 +1239,14 @@
             document.getElementById('qrTitle').textContent = `${eventTitle} - QR Code`;
             document.getElementById('ticketCodeDisplay').textContent = ticketCode;
 
-            // We'll fetch the ticket data and create a detailed QR code
             db.collection('tickets').where('ticketCode', '==', ticketCode).limit(1).get().then(snapshot => {
                 if (!snapshot.empty) {
                     const ticketData = snapshot.docs[0].data();
                     
-                    // Create a detailed data string for the QR code
                     const qrData = {
                         ticketCode: ticketCode,
                         firstName: currentUser.displayName || userFirstName || 'N/A',
-                        lastName: 'N/A', // We'll fetch this
+                        lastName: 'N/A',
                         email: ticketData.userEmail,
                         eventTitle: ticketData.eventTitle,
                         eventDate: ticketData.eventDate,
@@ -1186,7 +1256,6 @@
                         status: ticketData.status
                     };
 
-                    // Fetch user's last name
                     db.collection('users').doc(ticketData.userId).get().then(userDoc => {
                         if (userDoc.exists) {
                             const userData = userDoc.data();
@@ -1194,19 +1263,17 @@
                             qrData.lastName = userData.lastName || 'N/A';
                         }
 
-                        // Convert to formatted string
                         const qrString = `TICKET INFO
 Name: ${qrData.firstName} ${qrData.lastName}
 Email: ${qrData.email}
 Ticket ID: ${qrData.ticketCode}
 Event: ${qrData.eventTitle}
 Date: ${qrData.eventDate}
-Time: ${qrData.eventTime}
+Time: ${formatTime12Hour(qrData.eventTime)}
 Location: ${qrData.eventLocation}
 Price: ${qrData.price.toFixed(2)}
 Status: ${qrData.status.toUpperCase()}`;
 
-                        // Use QR Server API with the detailed data
                         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrString)}`;
                         
                         const qrImage = document.getElementById('qrcodeImage');
@@ -1238,7 +1305,6 @@ Status: ${qrData.status.toUpperCase()}`;
             }
         }
 
-        // Tab switching
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabName = tab.getAttribute('data-tab');
@@ -1254,7 +1320,6 @@ Status: ${qrData.status.toUpperCase()}`;
             document.getElementById(`${tabName}-tab`).classList.add('active');
         }
 
-        // Ticket type tabs
         document.querySelectorAll('.ticket-type-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 const type = tab.getAttribute('data-type');
@@ -1277,7 +1342,6 @@ Status: ${qrData.status.toUpperCase()}`;
             });
         });
 
-        // Update Profile
         document.getElementById('updateProfileBtn').addEventListener('click', async () => {
             const firstName = document.getElementById('displayNameInput').value;
             if (!firstName) {
@@ -1302,7 +1366,6 @@ Status: ${qrData.status.toUpperCase()}`;
             }
         });
 
-        // Admin: Create event
         document.getElementById('createEventForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -1342,7 +1405,6 @@ Status: ${qrData.status.toUpperCase()}`;
             }
         });
 
-        // Admin: Load events
         async function loadAdminEvents() {
             const adminList = document.getElementById('adminEventsList');
 
@@ -1365,7 +1427,7 @@ Status: ${qrData.status.toUpperCase()}`;
                         <div>
                             <h4>${event.emoji} ${event.title}</h4>
                             <p style="color: var(--text-light); font-size: 0.9rem;">
-                                📅 ${event.date} at ${event.time} | 📍 ${event.location} | ${parseFloat(event.price).toFixed(2)}
+                                📅 ${event.date} at ${formatTime12Hour(event.time)} | 📍 ${event.location} | ${parseFloat(event.price).toFixed(2)}
                             </p>
                         </div>
                         <button class="btn btn-danger" onclick="deleteEvent('${doc.id}', '${event.title}')">Delete</button>
@@ -1378,7 +1440,6 @@ Status: ${qrData.status.toUpperCase()}`;
             }
         }
 
-        // Admin: Delete event
         async function deleteEvent(eventId, eventTitle) {
             if (!isAdmin) {
                 alert('Unauthorized');
@@ -1400,7 +1461,6 @@ Status: ${qrData.status.toUpperCase()}`;
             }
         }
 
-        // Logout
         document.getElementById('logoutBtn').addEventListener('click', async () => {
             try {
                 await firebase.auth().signOut();
@@ -1409,6 +1469,229 @@ Status: ${qrData.status.toUpperCase()}`;
                 alert(err.message);
             }
         });
+
+        // Event Request Form
+        document.getElementById('requestEventForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!currentUser) {
+                alert('Please log in first');
+                return;
+            }
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+
+            try {
+                const requestData = {
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email,
+                    userFirstName: userFirstName || 'User',
+                    title: document.getElementById('requestEventTitle').value,
+                    description: document.getElementById('requestEventDescription').value,
+                    suggestedDate: document.getElementById('requestEventDate').value,
+                    suggestedTime: document.getElementById('requestEventTime').value,
+                    suggestedLocation: document.getElementById('requestEventLocation').value,
+                    suggestedPrice: parseFloat(document.getElementById('requestEventPrice').value),
+                    suggestedEmoji: document.getElementById('requestEventEmoji').value,
+                    reason: document.getElementById('requestEventReason').value,
+                    status: 'pending',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                console.log('Request data:', requestData);
+                
+                const docRef = await db.collection('eventRequests').add(requestData);
+                console.log('Request created with ID:', docRef.id);
+
+                alert('Event request submitted successfully! Admins will review it soon.');
+                e.target.reset();
+                loadUserEventRequests();
+            } catch (error) {
+                console.error("Full error object:", error);
+                console.error("Error code:", error.code);
+                console.error("Error message:", error.message);
+                alert('Failed to submit request: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Request';
+            }
+        });
+
+        // Load user's event requests
+        async function loadUserEventRequests() {
+            const requestsHistory = document.getElementById('requestsHistory');
+            
+            if (!currentUser) {
+                requestsHistory.innerHTML = '<div class="empty-state"><p>Please log in to view requests</p></div>';
+                return;
+            }
+
+            try {
+                const snapshot = await db.collection('eventRequests')
+                    .where('userId', '==', currentUser.uid)
+                    .get();
+
+                if (snapshot.empty) {
+                    requestsHistory.innerHTML = '<div class="empty-state"><p>No requests yet</p></div>';
+                    return;
+                }
+
+                requestsHistory.innerHTML = '';
+
+                snapshot.forEach(doc => {
+                    const request = doc.data();
+                    const statusClass = request.status;
+                    const statusText = request.status.charAt(0).toUpperCase() + request.status.slice(1);
+
+                    let reasonText = '';
+                    if (request.status === 'rejected' && request.rejectionReason) {
+                        reasonText = `<div style="background: var(--bg-color); padding: 0.75rem; border-radius: 6px; margin-top: 0.75rem; font-size: 0.9rem; color: var(--text-light);"><strong>Rejection Reason:</strong> ${request.rejectionReason}</div>`;
+                    }
+
+                    const requestCard = document.createElement('div');
+                    requestCard.style.cssText = 'background: var(--card-bg); padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid var(--primary-color);';
+                    
+                    let statusStyle = 'background-color: #fff3e0; color: #e65100;';
+                    if (request.status === 'approved') statusStyle = 'background-color: #e8f5e9; color: #2e7d32;';
+                    if (request.status === 'rejected') statusStyle = 'background-color: #ffebee; color: #c62828;';
+                    
+                    requestCard.innerHTML = `
+                        <h4>${request.title}</h4>
+                        <p style="color: var(--text-light); font-size: 0.9rem; margin: 0.5rem 0;">${request.description}</p>
+                        <p style="color: var(--text-light); font-size: 0.85rem;">
+                            📅 ${request.suggestedDate} at ${formatTime12Hour(request.suggestedTime)}
+                        </p>
+                        <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 500; margin-top: 0.5rem; ${statusStyle}">${statusText}</span>
+                        ${reasonText}
+                    `;
+                    requestsHistory.appendChild(requestCard);
+                });
+            } catch (error) {
+                console.error("Error loading requests:", error);
+                requestsHistory.innerHTML = '<div class="empty-state"><p>Error loading requests: ' + error.message + '</p></div>';
+            }
+        }
+
+        // Load admin event requests
+        async function loadAdminEventRequests() {
+            const adminList = document.getElementById('adminRequestsList');
+
+            try {
+                const snapshot = await db.collection('eventRequests')
+                    .where('status', '==', 'pending')
+                    .get();
+
+                if (snapshot.empty) {
+                    adminList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><h3>No pending requests</h3></div>';
+                    return;
+                }
+
+                adminList.innerHTML = '';
+
+                snapshot.forEach(doc => {
+                    const request = doc.data();
+                    const requestCard = document.createElement('div');
+                    requestCard.style.cssText = 'background: var(--bg-color); padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid var(--accent-color);';
+                    requestCard.innerHTML = `
+                        <h4>${request.title}</h4>
+                        <div style="color: var(--text-light); font-size: 0.9rem; margin: 0.5rem 0;">
+                            <p><strong>Requested by:</strong> ${request.userFirstName} (${request.userEmail})</p>
+                            <p><strong>Suggested Date:</strong> ${request.suggestedDate} at ${formatTime12Hour(request.suggestedTime)}</p>
+                            <p><strong>Description:</strong> ${request.description}</p>
+                        </div>
+                        <div style="background: var(--card-bg); padding: 0.75rem; border-radius: 6px; margin: 0.75rem 0; font-style: italic;">
+                            <strong>Why requested:</strong> ${request.reason}
+                        </div>
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                            <button class="btn btn-primary" onclick="approveEventRequest('${doc.id}')" style="flex: 1;">Approve</button>
+                            <button class="btn btn-danger" onclick="showRejectForm('${doc.id}')" style="flex: 1;">Reject</button>
+                        </div>
+                        <div class="rejection-reason-input" id="reject-form-${doc.id}" style="display: none; margin-top: 1rem;">
+                            <textarea id="reject-reason-${doc.id}" placeholder="Why are we rejecting this? (This will be sent to the user)" style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: 6px; font-family: inherit; resize: vertical; height: 80px;"></textarea>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                                <button class="btn btn-danger" onclick="rejectEventRequest('${doc.id}')" style="flex: 1;">Confirm Rejection</button>
+                                <button class="btn btn-secondary" onclick="cancelRejectForm('${doc.id}')" style="flex: 1;">Cancel</button>
+                            </div>
+                        </div>
+                    `;
+                    adminList.appendChild(requestCard);
+                });
+            } catch (error) {
+                console.error("Error loading admin requests:", error);
+                adminList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Error loading requests: ' + error.message + '</h3></div>';
+            }
+        }
+
+        function showRejectForm(requestId) {
+            document.getElementById(`reject-form-${requestId}`).style.display = 'block';
+        }
+
+        function cancelRejectForm(requestId) {
+            document.getElementById(`reject-form-${requestId}`).style.display = 'none';
+        }
+
+        async function approveEventRequest(requestId) {
+            if (!confirm('Approve this event request?')) return;
+
+            try {
+                // Get the request data first
+                const requestDoc = await db.collection('eventRequests').doc(requestId).get();
+                const requestData = requestDoc.data();
+
+                // Create the event from the request
+                const eventData = {
+                    title: requestData.title,
+                    emoji: requestData.suggestedEmoji || '📅',
+                    date: requestData.suggestedDate,
+                    time: requestData.suggestedTime,
+                    location: requestData.suggestedLocation || 'TD Arena',
+                    description: requestData.description,
+                    price: requestData.suggestedPrice || 0,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                await db.collection('events').add(eventData);
+
+                // Update request status
+                await db.collection('eventRequests').doc(requestId).update({
+                    status: 'approved',
+                    approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                alert('Event approved and added to dashboard!');
+                loadAdminEventRequests();
+                loadEvents();
+            } catch (error) {
+                console.error("Error approving request:", error);
+                alert('Failed to approve request: ' + error.message);
+            }
+        }
+
+        async function rejectEventRequest(requestId) {
+            const rejectionReason = document.getElementById(`reject-reason-${requestId}`).value;
+            
+            if (!rejectionReason.trim()) {
+                alert('Please provide a rejection reason.');
+                return;
+            }
+
+            try {
+                await db.collection('eventRequests').doc(requestId).update({
+                    status: 'rejected',
+                    rejectionReason: rejectionReason,
+                    rejectedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                alert('Event rejected! User has been notified.');
+                loadAdminEventRequests();
+                loadUserEventRequests();
+            } catch (error) {
+                console.error("Error rejecting request:", error);
+                alert('Failed to reject request: ' + error.message);
+            }
+        }
     </script>
 </body>
 </html>
