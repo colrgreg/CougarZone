@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - CougarZone</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode.js/1.5.3/qrcode.min.js"></script>
     <style>
         :root {
             --primary-color: #0d47a1;
@@ -31,7 +32,6 @@
             line-height: 1.6;
         }
 
-        /* Header */
         .header {
             background-color: var(--card-bg);
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -73,13 +73,13 @@
             font-weight: bold;
         }
 
-        /* Navigation */
         .nav-tabs {
             background-color: var(--card-bg);
             padding: 0 2rem;
             display: flex;
             gap: 2rem;
             border-bottom: 2px solid var(--border-color);
+            overflow-x: auto;
         }
 
         .nav-tab {
@@ -89,6 +89,7 @@
             transition: all 0.3s;
             font-weight: 500;
             color: var(--text-light);
+            white-space: nowrap;
         }
 
         .nav-tab:hover {
@@ -100,7 +101,6 @@
             border-bottom-color: var(--primary-color);
         }
 
-        /* Main Content */
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -115,7 +115,6 @@
             display: block;
         }
 
-        /* Welcome Section */
         .welcome-section {
             background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
             color: white;
@@ -129,7 +128,6 @@
             margin-bottom: 0.5rem;
         }
 
-        /* Events Grid */
         .events-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -169,7 +167,6 @@
             font-size: 1.25rem;
             font-weight: bold;
             margin-bottom: 0.5rem;
-            color: var(--text-color);
         }
 
         .event-date, .event-location, .event-description {
@@ -185,7 +182,21 @@
             margin: 1rem 0;
         }
 
-        /* Buttons */
+        .attendees-info {
+            background: #e3f2fd;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #1565c0;
+            margin: 0.5rem 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .attendees-info:hover {
+            background: #bbdefb;
+        }
+
         .btn {
             padding: 0.75rem 1.5rem;
             border: none;
@@ -232,7 +243,6 @@
             width: 100%;
         }
 
-        /* Tickets Section */
         .tickets-list {
             display: flex;
             flex-direction: column;
@@ -266,79 +276,119 @@
             color: #2e7d32;
         }
 
-        .ticket-status.used {
-            background-color: #fce4ec;
-            color: #c2185b;
-        }
-
         .ticket-status.expired {
             background-color: #fff3e0;
             color: #e65100;
         }
 
-        .ticket-type-tab {
-            transition: all 0.3s;
-        }
-
-        .ticket-type-tab:hover {
-            color: var(--primary-color);
-        }
-
-        .ticket-type-tab.active {
-            color: var(--primary-color);
-            border-bottom-color: var(--primary-color) !important;
-        }
-
-        .ticket-type-content {
+        .modal {
             display: none;
-        }
-
-        .ticket-type-content.active {
-            display: block;
-        }
-
-        /* Profile Section */
-        .profile-section {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .profile-card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .profile-header {
-            display: flex;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
             align-items: center;
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            justify-content: center;
         }
 
-        .profile-avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background-color: var(--primary-color);
-            color: white;
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+
+        .qr-code-container {
+            text-align: center;
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: var(--bg-color);
+            border-radius: 8px;
+            min-height: 300px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
+        }
+
+        .qr-code-container img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        #qrcode {
+            display: inline-block;
+        }
+
+        .ticket-code {
+            text-align: center;
+            font-family: monospace;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 1rem 0;
+            padding: 0.75rem;
+            background: var(--bg-color);
+            border-radius: 6px;
+            word-break: break-all;
+        }
+
+        .checkout-section {
+            background: var(--bg-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .checkout-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .checkout-total {
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem 0;
+            font-size: 1.25rem;
             font-weight: bold;
         }
 
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
 
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
             font-weight: 500;
-            color: var(--text-color);
         }
 
         .form-group input {
@@ -354,7 +404,52 @@
             border-color: var(--primary-color);
         }
 
-        /* Empty State */
+        .attendees-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .attendee-card {
+            background: var(--card-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .attendee-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin: 0 auto 0.5rem;
+            font-size: 1.5rem;
+        }
+
+        .attendee-name {
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 0.9rem;
+            word-break: break-word;
+            margin-bottom: 0.5rem;
+        }
+
+        .attendee-tickets {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            background: var(--bg-color);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
         .empty-state {
             text-align: center;
             padding: 3rem;
@@ -366,7 +461,6 @@
             margin-bottom: 1rem;
         }
 
-        /* Loading State */
         .loading-spinner {
             text-align: center;
             padding: 3rem;
@@ -387,17 +481,44 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Responsive */
+        /* Admin Panel Styles */
+        .admin-form {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .admin-form h3 {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .admin-events-list {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .event-item {
+            background: var(--bg-color);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
         @media (max-width: 768px) {
-            .header {
-                padding: 1rem;
-            }
-
-            .nav-tabs {
-                padding: 0 1rem;
-                gap: 1rem;
-            }
-
             .container {
                 padding: 1rem;
             }
@@ -411,11 +532,18 @@
                 align-items: flex-start;
                 gap: 1rem;
             }
+
+            .attendees-list {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
     <header class="header">
         <h1>🎟️ CougarZone</h1>
         <div class="header-right">
@@ -427,15 +555,13 @@
         </div>
     </header>
 
-    <!-- Navigation Tabs -->
     <nav class="nav-tabs">
         <div class="nav-tab active" data-tab="events">Browse Events</div>
         <div class="nav-tab" data-tab="tickets">My Tickets</div>
         <div class="nav-tab" data-tab="profile">Profile</div>
-        <div class="nav-tab" data-tab="admin" id="adminTab" style="display: none;">Admin Panel</div>
+        <div class="nav-tab" id="adminTab" data-tab="admin" style="display: none;">Admin Panel</div>
     </nav>
 
-    <!-- Main Content -->
     <div class="container">
         <!-- Events Tab -->
         <div class="tab-content active" id="events-tab">
@@ -454,7 +580,6 @@
         <div class="tab-content" id="tickets-tab">
             <h2>My Tickets</h2>
             
-            <!-- Ticket Type Tabs -->
             <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 2px solid var(--border-color);">
                 <div class="ticket-type-tab active" data-type="upcoming" style="padding: 1rem 2rem; cursor: pointer; border-bottom: 3px solid var(--primary-color); font-weight: 600; color: var(--primary-color);">
                     Upcoming Events
@@ -464,7 +589,6 @@
                 </div>
             </div>
 
-            <!-- Upcoming Tickets -->
             <div class="ticket-type-content active" id="upcoming-tickets">
                 <div class="tickets-list" id="upcomingTicketsList">
                     <div class="loading-spinner">
@@ -474,7 +598,6 @@
                 </div>
             </div>
 
-            <!-- Past Tickets -->
             <div class="ticket-type-content" id="past-tickets" style="display: none;">
                 <div class="tickets-list" id="pastTicketsList">
                     <div class="loading-spinner">
@@ -487,24 +610,14 @@
 
         <!-- Profile Tab -->
         <div class="tab-content" id="profile-tab">
-            <div class="profile-section">
-                <div class="profile-card">
-                    <div class="profile-header">
-                        <div class="profile-avatar" id="profileAvatar">U</div>
-                        <div>
-                            <h2 id="profileName">User Profile</h2>
-                            <p id="profileEmail" style="color: var(--text-light);">email@example.com</p>
-                        </div>
-                    </div>
+            <div style="max-width: 600px; margin: 0 auto;">
+                <div style="background: var(--card-bg); border-radius: 12px; padding: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h2 id="profileName">User Profile</h2>
+                    <p id="profileEmail" style="color: var(--text-light); margin-bottom: 1rem;">email@example.com</p>
 
                     <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="emailInput" readonly style="background-color: #f5f5f5;">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Display Name</label>
-                        <input type="text" id="displayNameInput" placeholder="Enter your name">
+                        <label>First Name</label>
+                        <input type="text" id="displayNameInput" placeholder="Enter your first name">
                     </div>
 
                     <button class="btn btn-primary btn-full" id="updateProfileBtn">Update Profile</button>
@@ -512,15 +625,14 @@
             </div>
         </div>
 
-        <!-- Admin Panel Tab -->
+        <!-- Admin Tab -->
         <div class="tab-content" id="admin-tab">
             <h2>Admin Panel - Event Management</h2>
             
-            <!-- Create Event Form -->
-            <div style="background: var(--card-bg); padding: 2rem; border-radius: 12px; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <h3 style="margin-bottom: 1.5rem;">Create New Event</h3>
+            <div class="admin-form">
+                <h3>Create New Event</h3>
                 <form id="createEventForm">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-grid">
                         <div class="form-group">
                             <label>Event Title</label>
                             <input type="text" id="eventTitle" placeholder="Basketball Championship" required>
@@ -545,17 +657,16 @@
                             <label>Price ($)</label>
                             <input type="number" id="eventPrice" placeholder="25.00" step="0.01" min="0" required>
                         </div>
-                        <div class="form-group">
-                            <label>Event Description</label>
-                            <input type="text" id="eventDescription" placeholder="Tell us more!" required>
-                        </div>
                     </div>
-                    <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">Create Event</button>
+                    <div class="form-group">
+                        <label>Event Description</label>
+                        <input type="text" id="eventDescription" placeholder="Tell us more!" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Event</button>
                 </form>
             </div>
 
-            <!-- Existing Events List -->
-            <div style="background: var(--card-bg); padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div class="admin-events-list">
                 <h3 style="margin-bottom: 1.5rem;">Manage Existing Events</h3>
                 <div id="adminEventsList">
                     <div class="loading-spinner">
@@ -567,13 +678,100 @@
         </div>
     </div>
 
+    <!-- QR Code Modal -->
+    <div class="modal" id="qrModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span id="qrTitle">Your Ticket QR Code</span>
+                <button class="close-btn" onclick="closeQRModal()">✕</button>
+            </div>
+            <div class="qr-code-container" id="qrcodeContainer">
+                <img id="qrcodeImage" src="" alt="QR Code" style="max-width: 100%; height: auto; display: none;">
+                <div id="qrcode" style="display: none;"></div>
+            </div>
+            <div class="ticket-code" id="ticketCodeDisplay"></div>
+            <p style="text-align: center; color: var(--text-light); font-size: 0.9rem;">
+                Show this code at the entrance
+            </p>
+            <button class="btn btn-primary btn-full" onclick="downloadQR()" style="margin-top: 1rem;">Download QR Code</button>
+        </div>
+    </div>
+
+    <!-- Payment Checkout Modal -->
+    <div class="modal" id="checkoutModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Secure Checkout</span>
+                <button class="close-btn" onclick="closeCheckout()">✕</button>
+            </div>
+
+            <div class="checkout-section">
+                <h3 id="checkoutEventTitle">Event Title</h3>
+                <div class="checkout-item">
+                    <span>Event Date:</span>
+                    <span id="checkoutEventDate">-</span>
+                </div>
+                <div class="checkout-item">
+                    <span>Price:</span>
+                    <span id="checkoutPrice">$0.00</span>
+                </div>
+                <div class="checkout-total">
+                    <span>Total:</span>
+                    <span id="checkoutTotal">$0.00</span>
+                </div>
+            </div>
+
+            <h4>Payment Information</h4>
+            <form id="paymentForm" onsubmit="processPayment(event)">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="fullName" required placeholder="John Doe">
+                </div>
+
+                <div class="form-group">
+                    <label>Card Number</label>
+                    <input type="text" id="cardNumber" required placeholder="1234 5678 9012 3456" maxlength="19">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Expiry Date</label>
+                        <input type="text" id="expiryDate" required placeholder="MM/YY" maxlength="5">
+                    </div>
+                    <div class="form-group">
+                        <label>CVV</label>
+                        <input type="text" id="cvv" required placeholder="123" maxlength="3">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full">Complete Purchase</button>
+                <button type="button" class="btn btn-secondary btn-full" onclick="closeCheckout()" style="margin-top: 0.5rem;">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Attendees Modal -->
+    <div class="modal" id="attendeesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span id="attendeesTitle">Event Attendees</span>
+                <button class="close-btn" onclick="closeAttendeesModal()">✕</button>
+            </div>
+            <div class="attendees-list" id="attendeesList">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase Scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode.js/1.5.3/qrcode.min.js"></script>
+
     <script>
-        // Firebase config
         const firebaseConfig = {
             apiKey: "AIzaSyAmps2xc43FVStBEYe1ghS-t-bO9GII1XA",
             authDomain: "cougarzone-d6be4.firebaseapp.com",
@@ -582,64 +780,73 @@
             messagingSenderId: "359665792907",
             appId: "1:359665792907:web:89b54508f29262855fa18e"
         };
-        
+
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Admin email
         const ADMIN_EMAIL = "bclinchuck@gmail.com";
         let isAdmin = false;
-
-        // Sample events data (will be replaced with Firestore data)
-        let sampleEvents = [];
-
         let currentUser = null;
+        let currentCheckoutEvent = null;
+        let userFirstName = '';
 
-        // Auth state observer
         firebase.auth().onAuthStateChanged(user => {
             if (user) {
-                // Check if email is verified
                 if (!user.emailVerified) {
-                    // Sign out and redirect to login
                     firebase.auth().signOut();
-                    alert("Please verify your email before accessing the dashboard. Check your inbox for the verification link.");
+                    alert("Please verify your email before accessing the dashboard.");
                     window.location.href = "/login";
                     return;
                 }
-                
+
                 currentUser = user;
                 const email = user.email;
                 const initial = email.charAt(0).toUpperCase();
-                
-                // Check if user is admin
+
+                // Check if admin
                 isAdmin = (email === ADMIN_EMAIL);
                 if (isAdmin) {
                     document.getElementById('adminTab').style.display = 'block';
-                }
-                
-                document.getElementById('userEmail').textContent = email;
-                document.getElementById('userAvatar').textContent = initial;
-                document.getElementById('profileAvatar').textContent = initial;
-                document.getElementById('profileEmail').textContent = email;
-                document.getElementById('emailInput').value = email;
-                document.getElementById('welcomeMessage').textContent = `Welcome back, ${email}!`;
-                
-                loadEvents();
-                loadUserTickets();
-                
-                if (isAdmin) {
                     loadAdminEvents();
                 }
+
+                // Load user data from Firestore
+                loadUserData(user.uid, email, initial);
+
+                document.getElementById('userEmail').textContent = email;
+                document.getElementById('userAvatar').textContent = initial;
+                document.getElementById('profileEmail').textContent = email;
+
+                loadEvents();
+                loadUserTickets();
             } else {
                 window.location.href = "/login";
             }
         });
 
-        // Load events from Firestore
+        async function loadUserData(userId, email, initial) {
+            try {
+                const userDoc = await db.collection('users').doc(userId).get();
+                if (userDoc.exists) {
+                    const data = userDoc.data();
+                    userFirstName = data.firstName || '';
+                    document.getElementById('displayNameInput').value = userFirstName;
+                    document.getElementById('profileName').textContent = `${userFirstName}'s Profile`;
+                    document.getElementById('welcomeMessage').textContent = `Welcome back, ${userFirstName}!`;
+                } else {
+                    // Fallback if no user doc
+                    document.getElementById('welcomeMessage').textContent = `Welcome back, ${email}!`;
+                }
+            } catch (error) {
+                console.error("Error loading user data:", error);
+                document.getElementById('welcomeMessage').textContent = `Welcome back, ${email}!`;
+            }
+        }
+
         async function loadEvents() {
             const eventsGrid = document.getElementById('eventsGrid');
             eventsGrid.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading events...</p></div>';
-            
+
             try {
                 const snapshot = await db.collection('events')
                     .where('date', '>=', new Date().toISOString().split('T')[0])
@@ -647,25 +854,17 @@
                     .get();
 
                 if (snapshot.empty) {
-                    eventsGrid.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📅</div>
-                            <h3>No upcoming events</h3>
-                            <p>Check back later for new events</p>
-                        </div>
-                    `;
+                    eventsGrid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📅</div><h3>No upcoming events</h3></div>`;
                     return;
                 }
 
                 eventsGrid.innerHTML = '';
-                sampleEvents = [];
-                
+
                 snapshot.forEach(doc => {
                     const event = { id: doc.id, ...doc.data() };
-                    sampleEvents.push(event);
-                    
                     const eventCard = document.createElement('div');
                     eventCard.className = 'event-card';
+
                     eventCard.innerHTML = `
                         <div class="event-image">${event.emoji}</div>
                         <div class="event-content">
@@ -673,70 +872,213 @@
                             <div class="event-date">📅 ${event.date} at ${event.time}</div>
                             <div class="event-location">📍 ${event.location}</div>
                             <div class="event-description">❗ ${event.description}</div>
-                            <div class="event-price">${parseFloat(event.price).toFixed(2)}</div>
-                            <button class="btn btn-primary btn-full" onclick="purchaseTicket('${doc.id}')" id="btn-${doc.id}">
+                            <div class="event-price">$${parseFloat(event.price).toFixed(2)}</div>
+                            <div class="attendees-info" id="attendees-${doc.id}" onclick="showAttendees('${doc.id}', '${event.title}')">
+                                Loading attendees...
+                            </div>
+                            <button class="btn btn-primary btn-full" onclick="openCheckout('${doc.id}')">
                                 Purchase Ticket
                             </button>
                         </div>
                     `;
                     eventsGrid.appendChild(eventCard);
+                    loadAttendeeCount(doc.id);
                 });
             } catch (error) {
                 console.error("Error loading events:", error);
-                eventsGrid.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">⚠️</div>
-                        <h3>Error loading events</h3>
-                        <p>Please refresh the page to try again</p>
-                    </div>
-                `;
+                eventsGrid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Error loading events</h3></div>`;
             }
         }
 
-        // Purchase ticket and save to Firestore
-        async function purchaseTicket(eventId) {
-            const event = sampleEvents.find(e => e.id === eventId);
-            if (!event || !currentUser) return;
+        async function loadAttendeeCount(eventId) {
+            try {
+                const snapshot = await db.collection('tickets')
+                    .where('eventId', '==', eventId)
+                    .where('status', '==', 'active')
+                    .get();
 
-            const btn = document.getElementById(`btn-${eventId}`);
-            btn.disabled = true;
-            btn.textContent = 'Processing...';
+                const count = snapshot.size;
+                const element = document.getElementById(`attendees-${eventId}`);
+                if (element) {
+                    element.innerHTML = `👥 ${count} ${count === 1 ? 'person' : 'people'} attending - Click to view`;
+                }
+            } catch (error) {
+                console.error("Error loading attendees:", error);
+                const element = document.getElementById(`attendees-${eventId}`);
+                if (element) {
+                    element.innerHTML = '👥 Unable to load attendees';
+                }
+            }
+        }
+
+        async function showAttendees(eventId, eventTitle) {
+            document.getElementById('attendeesTitle').textContent = `${eventTitle} - Attendees`;
+            document.getElementById('attendeesModal').classList.add('active');
 
             try {
-                const ticket = {
-                    userId: currentUser.uid,
-                    eventId: event.id,
-                    eventTitle: event.title,
-                    eventDate: event.date,
-                    eventTime: event.time,
-                    eventEmoji: event.emoji,
-                    eventLocation: event.location,
-                    eventDescription: event.description,
-                    price: parseFloat(event.price),
-                    purchaseDate: firebase.firestore.FieldValue.serverTimestamp(),
-                    status: 'active'
-                };
+                const snapshot = await db.collection('tickets')
+                    .where('eventId', '==', eventId)
+                    .where('status', '==', 'active')
+                    .get();
 
-                // Save ticket to Firestore
-                await db.collection('tickets').add(ticket);
-                
-                alert(`Ticket purchased for ${event.title}!`);
-                switchTab('tickets');
-                loadUserTickets();
+                const attendeesList = document.getElementById('attendeesList');
+
+                if (snapshot.empty) {
+                    attendeesList.innerHTML = '<div class="empty-state"><p>No attendees yet</p></div>';
+                    return;
+                }
+
+                attendeesList.innerHTML = '';
+                const attendeeMap = new Map(); // userId -> { name, ticketCount }
+
+                // Count tickets per user
+                snapshot.forEach(doc => {
+                    const ticket = doc.data();
+                    if (ticket.userId) {
+                        if (!attendeeMap.has(ticket.userId)) {
+                            attendeeMap.set(ticket.userId, { name: 'Loading...', ticketCount: 0 });
+                        }
+                        const userData = attendeeMap.get(ticket.userId);
+                        userData.ticketCount += 1;
+                    }
+                });
+
+                console.log('Attendee Map before fetch:', attendeeMap);
+
+                // Fetch user data for all attendees
+                for (const [userId, userData] of attendeeMap) {
+                    console.log('Fetching user data for:', userId);
+                    try {
+                        const userDoc = await db.collection('users').doc(userId).get();
+                        console.log('User doc exists:', userDoc.exists);
+                        console.log('User doc data:', userDoc.data());
+                        
+                        if (userDoc.exists) {
+                            const userDataFromDb = userDoc.data();
+                            const firstName = userDataFromDb.firstName || '';
+                            const lastName = userDataFromDb.lastName || '';
+                            const fullName = `${firstName} ${lastName}`.trim();
+                            
+                            console.log('Full name:', fullName);
+                            userData.name = fullName || 'User';
+                        } else {
+                            console.log('User doc does not exist');
+                            userData.name = 'User';
+                        }
+                    } catch (error) {
+                        console.error("Error fetching user data for", userId, ":", error);
+                        userData.name = 'User';
+                    }
+                }
+
+                console.log('Attendee Map after fetch:', attendeeMap);
+
+                // Display attendees
+                attendeeMap.forEach((userData, userId) => {
+                    const initial = userData.name.charAt(0).toUpperCase();
+                    const attendeeCard = document.createElement('div');
+                    attendeeCard.className = 'attendee-card';
+                    attendeeCard.innerHTML = `
+                        <div class="attendee-avatar">${initial}</div>
+                        <div class="attendee-name">${userData.name}</div>
+                        <div class="attendee-tickets">📋 ${userData.ticketCount} ${userData.ticketCount === 1 ? 'ticket' : 'tickets'}</div>
+                    `;
+                    attendeesList.appendChild(attendeeCard);
+                });
             } catch (error) {
-                console.error("Error purchasing ticket:", error);
-                alert("Failed to purchase ticket. Please try again.");
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Purchase Ticket';
+                console.error("Error loading attendees:", error);
+                document.getElementById('attendeesList').innerHTML = '<div class="empty-state"><p>Error loading attendees</p></div>';
             }
         }
 
-        // Load user tickets from Firestore
+        function closeAttendeesModal() {
+            document.getElementById('attendeesModal').classList.remove('active');
+        }
+
+        function openCheckout(eventId) {
+            db.collection('events').doc(eventId).get().then(doc => {
+                if (doc.exists) {
+                    const event = { id: doc.id, ...doc.data() };
+                    currentCheckoutEvent = event;
+
+                    document.getElementById('checkoutEventTitle').textContent = event.title;
+                    document.getElementById('checkoutEventDate').textContent = `${event.date} at ${event.time}`;
+                    const price = parseFloat(event.price).toFixed(2);
+                    document.getElementById('checkoutPrice').textContent = `${price}`;
+                    document.getElementById('checkoutTotal').textContent = `${price}`;
+                    document.getElementById('fullName').value = currentUser.displayName || '';
+
+                    document.getElementById('checkoutModal').classList.add('active');
+                }
+            });
+        }
+
+        function closeCheckout() {
+            document.getElementById('checkoutModal').classList.remove('active');
+            document.getElementById('paymentForm').reset();
+        }
+
+        function processPayment(e) {
+            e.preventDefault();
+
+            const fullName = document.getElementById('fullName').value;
+            const cardNumber = document.getElementById('cardNumber').value;
+            const expiryDate = document.getElementById('expiryDate').value;
+            const cvv = document.getElementById('cvv').value;
+
+            if (!fullName || !cardNumber || !expiryDate || !cvv) {
+                alert('Please fill in all payment details');
+                return;
+            }
+
+            const submitBtn = document.querySelector('#paymentForm button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+
+            setTimeout(async () => {
+                try {
+                    const ticketCode = generateTicketCode();
+                    const ticket = {
+                        userId: currentUser.uid,
+                        userEmail: currentUser.email,
+                        eventId: currentCheckoutEvent.id,
+                        eventTitle: currentCheckoutEvent.title,
+                        eventDate: currentCheckoutEvent.date,
+                        eventTime: currentCheckoutEvent.time,
+                        eventEmoji: currentCheckoutEvent.emoji,
+                        eventLocation: currentCheckoutEvent.location,
+                        eventDescription: currentCheckoutEvent.description,
+                        price: parseFloat(currentCheckoutEvent.price),
+                        purchaseDate: firebase.firestore.FieldValue.serverTimestamp(),
+                        status: 'active',
+                        ticketCode: ticketCode
+                    };
+
+                    await db.collection('tickets').add(ticket);
+
+                    alert('Payment successful! Your ticket has been added to your account.');
+                    closeCheckout();
+                    loadEvents();
+                    loadUserTickets();
+                    document.querySelector('[data-tab="tickets"]').click();
+                } catch (error) {
+                    console.error("Error creating ticket:", error);
+                    alert("Failed to process payment. Please try again.");
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Complete Purchase';
+                }
+            }, 1500);
+        }
+
+        function generateTicketCode() {
+            return 'TKT-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+        }
+
         async function loadUserTickets() {
             const upcomingList = document.getElementById('upcomingTicketsList');
             const pastList = document.getElementById('pastTicketsList');
-            
+
             if (!currentUser) return;
 
             try {
@@ -746,54 +1088,32 @@
                     .get();
 
                 if (snapshot.empty) {
-                    upcomingList.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">🎫</div>
-                            <h3>No tickets yet</h3>
-                            <p>Browse events and purchase tickets to see them here</p>
-                        </div>
-                    `;
-                    pastList.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📅</div>
-                            <h3>No past events</h3>
-                            <p>Expired tickets will appear here</p>
-                        </div>
-                    `;
+                    upcomingList.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🎫</div><h3>No tickets yet</h3></div>`;
+                    pastList.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📅</div><h3>No past events</h3></div>`;
                     return;
                 }
 
                 const upcomingTickets = [];
                 const pastTickets = [];
                 const today = new Date();
-                today.setHours(0, 0, 0, 0); // Set to midnight for accurate date comparison
+                today.setHours(0, 0, 0, 0);
 
                 snapshot.forEach(doc => {
-                    const ticket = doc.data();
-                    // Parse the event date and set to midnight for comparison
+                    const ticket = { id: doc.id, ...doc.data() };
                     const eventDate = new Date(ticket.eventDate + 'T00:00:00');
                     eventDate.setHours(0, 0, 0, 0);
-                    
-                    // Check if event date has passed (before today)
+
                     if (eventDate < today) {
                         ticket.status = 'expired';
                         pastTickets.push(ticket);
                     } else {
-                        // Event is today or in the future
                         ticket.status = 'active';
                         upcomingTickets.push(ticket);
                     }
                 });
 
-                // Display upcoming tickets
                 if (upcomingTickets.length === 0) {
-                    upcomingList.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">🎫</div>
-                            <h3>No upcoming events</h3>
-                            <p>Browse events and purchase tickets to see them here</p>
-                        </div>
-                    `;
+                    upcomingList.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🎫</div><h3>No upcoming events</h3></div>`;
                 } else {
                     upcomingList.innerHTML = '';
                     upcomingTickets.forEach(ticket => {
@@ -801,45 +1121,22 @@
                     });
                 }
 
-                // Display past tickets
                 if (pastTickets.length === 0) {
-                    pastList.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📅</div>
-                            <h3>No past events</h3>
-                            <p>Expired tickets will appear here</p>
-                        </div>
-                    `;
+                    pastList.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📅</div><h3>No past events</h3></div>`;
                 } else {
                     pastList.innerHTML = '';
                     pastTickets.forEach(ticket => {
                         pastList.appendChild(createTicketCard(ticket));
                     });
                 }
-
             } catch (error) {
                 console.error("Error loading tickets:", error);
-                upcomingList.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">⚠️</div>
-                        <h3>Error loading tickets</h3>
-                        <p>Please refresh the page to try again</p>
-                    </div>
-                `;
-                pastList.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">⚠️</div>
-                        <h3>Error loading tickets</h3>
-                        <p>Please refresh the page to try again</p>
-                    </div>
-                `;
             }
         }
 
-        // Create ticket card element
         function createTicketCard(ticket) {
             const purchaseDate = ticket.purchaseDate ? ticket.purchaseDate.toDate() : new Date();
-            
+
             const ticketCard = document.createElement('div');
             ticketCard.className = 'ticket-card';
             ticketCard.innerHTML = `
@@ -851,8 +1148,6 @@
                     <p style="color: var(--text-light);">
                         📍 ${ticket.eventLocation}
                     </p>
-                    <p style="color: var(--text-light);">
-                        ❗ ${ticket.eventDescription}
                     <p style="color: var(--text-light); font-size: 0.9rem;">
                         Purchased: ${purchaseDate.toLocaleDateString()}
                     </p>
@@ -862,36 +1157,86 @@
                     <p style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color);">
                         ${ticket.price.toFixed(2)}
                     </p>
-                    ${ticket.status === 'active' ? '<button class="btn btn-secondary" style="margin-top: 0.5rem;">View QR Code</button>' : ''}
+                    ${ticket.status === 'active' ? `<button class="btn btn-secondary" onclick="openQRCode('${ticket.ticketCode}', '${ticket.eventTitle}')">View QR Code</button>` : ''}
                 </div>
             `;
             return ticketCard;
         }
 
-        // Ticket type tab switching
-        document.querySelectorAll('.ticket-type-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                const type = tab.getAttribute('data-type');
-                
-                // Update tabs
-                document.querySelectorAll('.ticket-type-tab').forEach(t => {
-                    t.classList.remove('active');
-                    t.style.borderBottomColor = 'transparent';
-                    t.style.color = 'var(--text-light)';
-                });
-                tab.classList.add('active');
-                tab.style.borderBottomColor = 'var(--primary-color)';
-                tab.style.color = 'var(--primary-color)';
-                
-                // Update content
-                document.querySelectorAll('.ticket-type-content').forEach(c => {
-                    c.classList.remove('active');
-                    c.style.display = 'none';
-                });
-                document.getElementById(`${type}-tickets`).classList.add('active');
-                document.getElementById(`${type}-tickets`).style.display = 'block';
+        function openQRCode(ticketCode, eventTitle) {
+            document.getElementById('qrTitle').textContent = `${eventTitle} - QR Code`;
+            document.getElementById('ticketCodeDisplay').textContent = ticketCode;
+
+            // We'll fetch the ticket data and create a detailed QR code
+            db.collection('tickets').where('ticketCode', '==', ticketCode).limit(1).get().then(snapshot => {
+                if (!snapshot.empty) {
+                    const ticketData = snapshot.docs[0].data();
+                    
+                    // Create a detailed data string for the QR code
+                    const qrData = {
+                        ticketCode: ticketCode,
+                        firstName: currentUser.displayName || userFirstName || 'N/A',
+                        lastName: 'N/A', // We'll fetch this
+                        email: ticketData.userEmail,
+                        eventTitle: ticketData.eventTitle,
+                        eventDate: ticketData.eventDate,
+                        eventTime: ticketData.eventTime,
+                        eventLocation: ticketData.eventLocation,
+                        price: ticketData.price,
+                        status: ticketData.status
+                    };
+
+                    // Fetch user's last name
+                    db.collection('users').doc(ticketData.userId).get().then(userDoc => {
+                        if (userDoc.exists) {
+                            const userData = userDoc.data();
+                            qrData.firstName = userData.firstName || 'N/A';
+                            qrData.lastName = userData.lastName || 'N/A';
+                        }
+
+                        // Convert to formatted string
+                        const qrString = `TICKET INFO
+Name: ${qrData.firstName} ${qrData.lastName}
+Email: ${qrData.email}
+Ticket ID: ${qrData.ticketCode}
+Event: ${qrData.eventTitle}
+Date: ${qrData.eventDate}
+Time: ${qrData.eventTime}
+Location: ${qrData.eventLocation}
+Price: ${qrData.price.toFixed(2)}
+Status: ${qrData.status.toUpperCase()}`;
+
+                        // Use QR Server API with the detailed data
+                        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrString)}`;
+                        
+                        const qrImage = document.getElementById('qrcodeImage');
+                        qrImage.src = qrImageUrl;
+                        qrImage.style.display = 'block';
+
+                        document.getElementById('qrcode').style.display = 'none';
+                        document.getElementById('qrModal').classList.add('active');
+                    });
+                } else {
+                    console.error('Ticket not found');
+                }
             });
-        });
+        }
+
+        function closeQRModal() {
+            document.getElementById('qrModal').classList.remove('active');
+        }
+
+        function downloadQR() {
+            const qrImage = document.getElementById('qrcodeImage');
+            if (qrImage && qrImage.src) {
+                const link = document.createElement('a');
+                link.href = qrImage.src;
+                link.download = 'ticket-qr-code.png';
+                link.click();
+            } else {
+                alert('QR Code not generated yet. Please try again.');
+            }
+        }
 
         // Tab switching
         document.querySelectorAll('.nav-tab').forEach(tab => {
@@ -904,83 +1249,63 @@
         function switchTab(tabName) {
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
+
             document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
             document.getElementById(`${tabName}-tab`).classList.add('active');
         }
 
-        // Logout
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            try {
-                await firebase.auth().signOut();
-                window.location.href = "/login";
-            } catch (err) {
-                alert(err.message);
-            }
-        });
+        // Ticket type tabs
+        document.querySelectorAll('.ticket-type-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const type = tab.getAttribute('data-type');
 
-        // Update profile
-        document.getElementById('updateProfileBtn').addEventListener('click', () => {
-            const displayName = document.getElementById('displayNameInput').value;
-            if (displayName) {
-                alert('Profile updated successfully!');
-            } else {
-                alert('Please enter a display name');
-            }
-        });
-
-        // Admin: Load events for management
-        async function loadAdminEvents() {
-            const adminList = document.getElementById('adminEventsList');
-            
-            try {
-                const snapshot = await db.collection('events')
-                    .orderBy('date', 'asc')
-                    .get();
-
-                if (snapshot.empty) {
-                    adminList.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📅</div>
-                            <h3>No events created yet</h3>
-                            <p>Create your first event above</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                adminList.innerHTML = '';
-                snapshot.forEach(doc => {
-                    const event = doc.data();
-                    const eventItem = document.createElement('div');
-                    eventItem.style.cssText = 'background: var(--bg-color); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;';
-                    eventItem.innerHTML = `
-                        <div>
-                            <h4>${event.emoji} ${event.title}</h4>
-                            <p style="color: var(--text-light); font-size: 0.9rem;">
-                                📅 ${event.date} at ${event.time} | 📍 ${event.location} | ${parseFloat(event.price).toFixed(2)}
-                            </p>
-                        </div>
-                        <button class="btn btn-danger" onclick="deleteEvent('${doc.id}', '${event.title}')">Delete</button>
-                    `;
-                    adminList.appendChild(eventItem);
+                document.querySelectorAll('.ticket-type-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.style.borderBottomColor = 'transparent';
+                    t.style.color = 'var(--text-light)';
                 });
-            } catch (error) {
-                console.error("Error loading admin events:", error);
-                adminList.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">⚠️</div>
-                        <h3>Error loading events</h3>
-                        <p>Please refresh the page</p>
-                    </div>
-                `;
+                tab.classList.add('active');
+                tab.style.borderBottomColor = 'var(--primary-color)';
+                tab.style.color = 'var(--primary-color)';
+
+                document.querySelectorAll('.ticket-type-content').forEach(c => {
+                    c.classList.remove('active');
+                    c.style.display = 'none';
+                });
+                document.getElementById(`${type}-tickets`).classList.add('active');
+                document.getElementById(`${type}-tickets`).style.display = 'block';
+            });
+        });
+
+        // Update Profile
+        document.getElementById('updateProfileBtn').addEventListener('click', async () => {
+            const firstName = document.getElementById('displayNameInput').value;
+            if (!firstName) {
+                alert('Please enter your first name');
+                return;
             }
-        }
+
+            try {
+                await db.collection('users').doc(currentUser.uid).set({
+                    firstName: firstName,
+                    email: currentUser.email,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                userFirstName = firstName;
+                document.getElementById('welcomeMessage').textContent = `Welcome back, ${firstName}!`;
+                document.getElementById('profileName').textContent = `${firstName}'s Profile`;
+                alert('Profile updated successfully!');
+            } catch (error) {
+                console.error("Error updating profile:", error);
+                alert('Failed to update profile. Please try again.');
+            }
+        });
 
         // Admin: Create event
         document.getElementById('createEventForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             if (!isAdmin) {
                 alert('Unauthorized');
                 return;
@@ -1003,7 +1328,7 @@
                 };
 
                 await db.collection('events').add(eventData);
-                
+
                 alert('Event created successfully!');
                 e.target.reset();
                 loadEvents();
@@ -1016,6 +1341,42 @@
                 submitBtn.textContent = 'Create Event';
             }
         });
+
+        // Admin: Load events
+        async function loadAdminEvents() {
+            const adminList = document.getElementById('adminEventsList');
+
+            try {
+                const snapshot = await db.collection('events')
+                    .orderBy('date', 'asc')
+                    .get();
+
+                if (snapshot.empty) {
+                    adminList.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📅</div><h3>No events created yet</h3></div>`;
+                    return;
+                }
+
+                adminList.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const event = doc.data();
+                    const eventItem = document.createElement('div');
+                    eventItem.className = 'event-item';
+                    eventItem.innerHTML = `
+                        <div>
+                            <h4>${event.emoji} ${event.title}</h4>
+                            <p style="color: var(--text-light); font-size: 0.9rem;">
+                                📅 ${event.date} at ${event.time} | 📍 ${event.location} | ${parseFloat(event.price).toFixed(2)}
+                            </p>
+                        </div>
+                        <button class="btn btn-danger" onclick="deleteEvent('${doc.id}', '${event.title}')">Delete</button>
+                    `;
+                    adminList.appendChild(eventItem);
+                });
+            } catch (error) {
+                console.error("Error loading admin events:", error);
+                adminList.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Error loading events</h3></div>`;
+            }
+        }
 
         // Admin: Delete event
         async function deleteEvent(eventId, eventTitle) {
@@ -1038,6 +1399,16 @@
                 alert('Failed to delete event. Please try again.');
             }
         }
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                await firebase.auth().signOut();
+                window.location.href = "/login";
+            } catch (err) {
+                alert(err.message);
+            }
+        });
     </script>
 </body>
 </html>
