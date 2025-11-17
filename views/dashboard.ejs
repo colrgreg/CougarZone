@@ -55,6 +55,11 @@
             gap: 1rem;
         }
 
+        .cart-badge {
+            position: relative;
+            cursor: pointer;
+        }
+
         .user-info {
             display: flex;
             align-items: center;
@@ -646,6 +651,10 @@
     <header class="header">
         <h1>🎟️ CougarZone</h1>
         <div class="header-right">
+            <div class="cart-badge" onclick="openCart()">
+                <div class="cart-icon">🛒</div>
+                <div class="cart-count" id="cartCount" style="display: none;">0</div>
+            </div>
             <div class="user-info">
                 <div class="user-avatar" id="userAvatar">U</div>
                 <span id="userEmail">Loading...</span>
@@ -656,6 +665,7 @@
 
     <nav class="nav-tabs">
         <div class="nav-tab active" data-tab="events">Browse Events</div>
+        <div class="nav-tab" data-tab="cart">Shopping Cart</div>        
         <div class="nav-tab" data-tab="tickets">My Tickets</div>
         <div class="nav-tab" data-tab="requests">Request Event</div>
         <div class="nav-tab" data-tab="profile">Profile</div>
@@ -675,7 +685,13 @@
                 <!-- Events will be loaded here -->
             </div>
         </div>
-
+        <!-- Shopping Cart Tab -->
+        <div class="tab-content" id="cart-tab">
+            <h2>Shopping Cart</h2>
+            <div id="cartContainer" style="margin-top: 2rem;">
+                <div class="empty-state"><p>Your cart is empty</p></div>
+            </div>
+        </div>
         <!-- My Tickets Tab -->
         <div class="tab-content" id="tickets-tab">
             <h2>My Tickets</h2>
@@ -913,7 +929,20 @@
                     <span id="checkoutTotal">$0.00</span>
                 </div>
             </div>
-
+            <div class="checkout-section">
+                <div class="checkout-item">
+                    <span>Subtotal:</span>
+                    <span id="checkoutSubtotal">$0.00</span>
+                </div>
+                <div class="checkout-item">
+                    <span>Discount:</span>
+                    <span id="checkoutDiscount">$0.00</span>
+                </div>
+                <div class="checkout-total">
+                    <span>Total:</span>
+                    <span id="checkoutTotalAmount">$0.00</span>
+                </div>
+            </div>
             <h4>Payment Information</h4>
             <form id="paymentForm" onsubmit="processPayment(event)">
                 <div class="form-group">
@@ -957,7 +986,45 @@
             </div>
         </div>
     </div>
-
+    <!-- Cart Modal -->
+    <div class="modal" id="cartModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>🛒 Shopping Cart</span>
+                <button class="close-btn" onclick="closeCart()">✕</button>
+            </div>
+            <div id="cartItemsContainer"></div>
+            <div class="checkout-section" id="checkoutSummary" style="display: none;">
+                <div class="checkout-item">
+                    <span>Subtotal:</span>
+                    <span id="subtotal">$0.00</span>
+                </div>
+                
+                <div style="background: #fff3e0; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid #ffb300;">
+                    <h4>Apply Discount Code</h4>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <input type="text" id="discountCode" placeholder="Enter discount code" maxlength="20" style="flex: 1; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 6px;">
+                        <button class="btn" style="background-color: #e0e0e0; color: #212121; padding: 0.75rem 1.5rem;" onclick="applyDiscount()">Apply</button>
+                    </div>
+                    <div id="discountResult" style="display: none; margin-top: 1rem;"></div>
+                </div>
+    
+                <div class="checkout-item">
+                    <span>Discount:</span>
+                    <span id="discountAmount">$0.00</span>
+                </div>
+                
+                <div class="checkout-total">
+                    <span>Total:</span>
+                    <span id="cartTotal">$0.00</span>
+                </div>
+    
+                <button class="btn btn-primary btn-full" onclick="proceedToCheckout()" style="margin-top: 1rem;">
+                    Proceed to Checkout
+                </button>
+            </div>
+        </div>
+    </div>
     <!-- Notification Container -->
     <div id="notificationContainer"></div>
 
@@ -1033,6 +1100,9 @@
         let currentCheckoutEvent = null;
         let userFirstName = '';
         let userLastName = '';
+        let cart = [];
+        let appliedDiscount = null;
+        let currentQtyDisplay = null;
 
         // Format time to 12-hour format
         function formatTime12Hour(time24) {
@@ -1134,9 +1204,11 @@
                             <div class="attendees-info" id="attendees-${doc.id}" onclick="showAttendees('${doc.id}', '${event.title}')">
                                 Loading attendees...
                             </div>
-                            <button class="btn btn-primary btn-full" id="purchase-btn-${doc.id}" onclick="openCheckout('${doc.id}')">
-                                Purchase Ticket
-                            </button>
+                            <div class="quantity-selector">
+                                <button class="quantity-btn" onclick="decreaseQuantity(this)">−</button>
+                                <div class="quantity-display" data-quantity="1">1</div>
+                                <button class="quantity-btn" onclick="increaseQuantity(this)">+</button>
+                            </div>
                         </div>
                     `;
                     eventsGrid.appendChild(eventCard);
@@ -1309,29 +1381,85 @@
 
             setTimeout(async () => {
                 try {
-                    const ticketCode = generateTicketCode();
-                    const ticket = {
-                        userId: currentUser.uid,
-                        userEmail: currentUser.email,
-                        eventId: currentCheckoutEvent.id,
-                        eventTitle: currentCheckoutEvent.title,
-                        eventDate: currentCheckoutEvent.date,
-                        eventTime: currentCheckoutEvent.time,
-                        eventEmoji: currentCheckoutEvent.emoji,
-                        eventLocation: currentCheckoutEvent.location,
-                        eventDescription: currentCheckoutEvent.description,
-                        price: parseFloat(currentCheckoutEvent.price),
-                        purchaseDate: firebase.firestore.FieldValue.serverTimestamp(),
-                        status: 'active',
-                        ticketCode: ticketCode
-                    };
-
-                    await db.collection('tickets').add(ticket);
+                    function processPayment(e) {
+                        e.preventDefault();
+                    
+                        const fullName = document.getElementById('fullName').value;
+                        const cardNumber = document.getElementById('cardNumber').value;
+                        const expiryDate = document.getElementById('expiryDate').value;
+                        const cvv = document.getElementById('cvv').value;
+                    
+                        if (!fullName || !cardNumber || !expiryDate || !cvv) {
+                            showError('Please fill in all payment details');
+                            return;
+                        }
+                    
+                        const submitBtn = document.querySelector('#paymentForm button[type="submit"]');
+                        submitBtn.disabled = true;
+                        submitBtn.textContent = 'Processing...';
+                    
+                        setTimeout(async () => {
+                            try {
+                                const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                                let discountAmount = 0;
+                    
+                                if (appliedDiscount) {
+                                    if (appliedDiscount.type === 'percentage') {
+                                        discountAmount = subtotal * (appliedDiscount.value / 100);
+                                    } else if (appliedDiscount.type === 'fixed') {
+                                        discountAmount = appliedDiscount.value;
+                                    }
+                                }
+                    
+                                const totalPrice = subtotal - discountAmount;
+                    
+                                // Create tickets for each item
+                                let ticketCount = 0;
+                                for (const item of cart) {
+                                    for (let i = 0; i < item.quantity; i++) {
+                                        const ticketCode = generateTicketCode();
+                                        const ticket = {
+                                            userId: currentUser.uid,
+                                            userEmail: currentUser.email,
+                                            eventTitle: item.title,
+                                            price: item.price,
+                                            purchaseDate: firebase.firestore.FieldValue.serverTimestamp(),
+                                            status: 'active',
+                                            ticketCode: ticketCode,
+                                            discountApplied: appliedDiscount ? appliedDiscount.description : 'None'
+                                        };
+                    
+                                        await db.collection('tickets').add(ticket);
+                                        ticketCount++;
+                                    }
+                                }
+                    
+                                showSuccess(`Payment successful! ${ticketCount} ticket(s) purchased!`);
+                                
+                                // Clear cart
+                                cart = [];
+                                appliedDiscount = null;
+                                updateCartCount();
+                    
+                                closeCheckout();
+                                document.getElementById('paymentForm').reset();
+                                loadUserTickets();
+                                document.querySelector('[data-tab="tickets"]').click();
+                            } catch (error) {
+                                console.error("Error creating tickets:", error);
+                                showError("Failed to process payment. Please try again.");
+                            } finally {
+                                submitBtn.disabled = false;
+                                submitBtn.textContent = 'Complete Purchase';
+                            }
+                        }, 1500);
+                    }
 
                     showSuccess('Payment successful! Your ticket has been added to your account.');
                     closeCheckout();
                     loadEvents();
                     loadUserTickets();
+                    updateCartCount();
                     document.querySelector('[data-tab="tickets"]').click();
                 } catch (error) {
                     console.error("Error creating ticket:", error);
@@ -1882,6 +2010,185 @@ Status: ${ticketData.status.toUpperCase()}`;
                 console.error("Error rejecting request:", error);
                 showError('Failed to reject request: ' + error.message);
             }
+        }
+        // ===== SHOPPING CART FUNCTIONS =====
+        
+        function increaseQty(btn) {
+            const display = btn.parentElement.querySelector('.qty-display');
+            let qty = parseInt(display.dataset.qty) || 1;
+            qty++;
+            display.dataset.qty = qty;
+            display.textContent = qty;
+        }
+        
+        function decreaseQty(btn) {
+            const display = btn.parentElement.querySelector('.qty-display');
+            let qty = parseInt(display.dataset.qty) || 1;
+            if (qty > 1) {
+                qty--;
+                display.dataset.qty = qty;
+                display.textContent = qty;
+            }
+        }
+        
+        function addToCart(eventTitle, price, btn) {
+            const qtyDisplay = btn.closest('.event-content').querySelector('.qty-display');
+            const qty = parseInt(qtyDisplay.dataset.qty) || 1;
+        
+            const cartItem = {
+                id: Date.now(),
+                title: eventTitle,
+                price: price,
+                quantity: qty
+            };
+        
+            cart.push(cartItem);
+            updateCartCount();
+            showSuccess(`✅ Added ${qty} ticket(s) for ${eventTitle}!`);
+            qtyDisplay.dataset.qty = '1';
+            qtyDisplay.textContent = '1';
+        }
+        
+        function updateCartCount() {
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            const cartCount = document.getElementById('cartCount');
+            if (totalItems > 0) {
+                cartCount.textContent = totalItems;
+                cartCount.style.display = 'flex';
+            } else {
+                cartCount.style.display = 'none';
+            }
+        }
+        
+        function renderCart() {
+            const container = document.getElementById('cartItemsContainer');
+            
+            if (cart.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>Your cart is empty</p></div>';
+                document.getElementById('checkoutSummary').style.display = 'none';
+                return;
+            }
+        
+            let html = '';
+            let subtotal = 0;
+        
+            cart.forEach((item, index) => {
+                const itemTotal = item.price * item.quantity;
+                subtotal += itemTotal;
+                html += `
+                    <div style="background: var(--card-bg); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="flex: 1;">
+                            <h3 style="margin-bottom: 0.25rem;">${item.title}</h3>
+                            <div style="color: var(--text-light); font-size: 0.9rem; margin-bottom: 0.5rem;">$${item.price.toFixed(2)} each</div>
+                            <div style="font-weight: bold; color: var(--primary-color);">Qty: ${item.quantity}</div>
+                        </div>
+                        <div style="font-size: 1.25rem; font-weight: bold; color: var(--primary-color); margin-right: 1rem;">$${itemTotal.toFixed(2)}</div>
+                        <button class="btn" style="background-color: #f44336; color: white; padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="removeFromCart(${index})">Remove</button>
+                    </div>
+                `;
+            });
+        
+            container.innerHTML = html;
+            updateCheckoutSummary(subtotal);
+            document.getElementById('checkoutSummary').style.display = 'block';
+        }
+        
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCartCount();
+            renderCart();
+            appliedDiscount = null;
+            document.getElementById('discountResult').style.display = 'none';
+            document.getElementById('discountCode').value = '';
+            showSuccess('✅ Item removed from cart');
+        }
+        
+        function updateCheckoutSummary(subtotal) {
+            let discountAmount = 0;
+        
+            if (appliedDiscount) {
+                if (appliedDiscount.type === 'percentage') {
+                    discountAmount = subtotal * (appliedDiscount.value / 100);
+                } else if (appliedDiscount.type === 'fixed') {
+                    discountAmount = appliedDiscount.value;
+                }
+            }
+        
+            const total = subtotal - discountAmount;
+        
+            document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+            document.getElementById('discountAmount').textContent = `-$${discountAmount.toFixed(2)}`;
+            document.getElementById('cartTotal').textContent = `$${total.toFixed(2)}`;
+        }
+        
+        function applyDiscount() {
+            const code = document.getElementById('discountCode').value.toUpperCase();
+            const resultDiv = document.getElementById('discountResult');
+        
+            if (!code) {
+                resultDiv.innerHTML = '<div style="background: var(--card-bg); padding: 1rem; border-radius: 8px; border: 2px solid #f44336;">❌ Please enter a discount code</div>';
+                resultDiv.style.display = 'block';
+                return;
+            }
+        
+            const discountCodes = {
+                'WELCOME10': { type: 'percentage', value: 10, description: '10% off' },
+                'WELCOME20': { type: 'percentage', value: 20, description: '20% off' },
+                'SAVE5': { type: 'fixed', value: 5, description: '$5 off' },
+                'SAVE10': { type: 'fixed', value: 10, description: '$10 off' },
+                'STUDENT': { type: 'percentage', value: 15, description: '15% student discount' }
+            };
+        
+            if (discountCodes[code]) {
+                appliedDiscount = discountCodes[code];
+                resultDiv.innerHTML = `<div style="background: var(--card-bg); padding: 1rem; border-radius: 8px; border: 2px solid #4caf50;">✅ Discount applied! ${appliedDiscount.description}</div>`;
+                resultDiv.style.display = 'block';
+                
+                const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                updateCheckoutSummary(subtotal);
+                showSuccess(`✅ Discount code "${code}" applied!`);
+            } else {
+                resultDiv.innerHTML = '<div style="background: var(--card-bg); padding: 1rem; border-radius: 8px; border: 2px solid #f44336;">❌ Invalid discount code</div>';
+                resultDiv.style.display = 'block';
+                appliedDiscount = null;
+                showError('❌ Invalid discount code');
+            }
+        }
+        
+        function openCart() {
+            renderCart();
+            document.getElementById('cartModal').classList.add('active');
+        }
+        
+        function closeCart() {
+            document.getElementById('cartModal').classList.remove('active');
+        }
+        
+        function proceedToCheckout() {
+            if (cart.length === 0) {
+                showError('Your cart is empty');
+                return;
+            }
+        
+            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            let discountAmount = 0;
+        
+            if (appliedDiscount) {
+                if (appliedDiscount.type === 'percentage') {
+                    discountAmount = subtotal * (appliedDiscount.value / 100);
+                } else if (appliedDiscount.type === 'fixed') {
+                    discountAmount = appliedDiscount.value;
+                }
+            }
+        
+            const total = subtotal - discountAmount;
+        
+            document.getElementById('checkoutSubtotal').textContent = `$${subtotal.toFixed(2)}`;
+            document.getElementById('checkoutDiscount').textContent = `-$${discountAmount.toFixed(2)}`;
+            document.getElementById('checkoutTotalAmount').textContent = `$${total.toFixed(2)}`;
+        
+            closeCart();
+            document.getElementById('checkoutModal').classList.add('active');
         }
     </script>
 </body>
