@@ -916,6 +916,24 @@
                     <span>Total:</span>
                     <span id="checkoutTotal">$0.00</span>
                 </div>
+                <div style="background: #fff3e0; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid #ffb300;">
+                    <h4>Apply Discount Code</h4>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <input type="text" id="discountCode" placeholder="Enter discount code" maxlength="20" style="flex: 1; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 6px;">
+                        <button type="button" class="btn" style="background-color: #e0e0e0; color: #212121; padding: 0.75rem 1.5rem;" onclick="applyCheckoutDiscount()">Apply</button>
+                    </div>
+                    <div id="discountResult" style="display: none; margin-top: 1rem;"></div>
+                </div>
+                
+                <div class="checkout-item">
+                    <span>Discount:</span>
+                    <span id="discountAmount">$0.00</span>
+                </div>
+                
+                <div class="checkout-total">
+                    <span>Total (After Discount):</span>
+                    <span id="checkoutTotalWithDiscount" style="display: none; color: #f44336;">$0.00</span>
+                </div>
             </div>
 
             <h4>Payment Information</h4>
@@ -1316,25 +1334,25 @@
 
         function processPayment(e) {
             e.preventDefault();
-
+        
             const fullName = document.getElementById('fullName').value;
             const cardNumber = document.getElementById('cardNumber').value;
             const expiryDate = document.getElementById('expiryDate').value;
             const cvv = document.getElementById('cvv').value;
-
+        
             if (!fullName || !cardNumber || !expiryDate || !cvv) {
                 showError('Please fill in all payment details');
                 return;
             }
-
+        
             const submitBtn = document.querySelector('#paymentForm button[type="submit"]');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Processing...';
-
+        
             setTimeout(async () => {
                 try {
                     const quantity = currentCheckoutEvent.quantity || 1;
-                
+        
                     // Create a ticket for each quantity
                     for (let i = 0; i < quantity; i++) {
                         const ticketCode = generateTicketCode();
@@ -1353,16 +1371,35 @@
                             status: 'active',
                             ticketCode: ticketCode
                         };
-                
+        
                         await db.collection('tickets').add(ticket);
                     }
-                
+        
+                    // ===== ADD THIS SECTION =====
+                    // Apply discount if one was used
+                    if (currentDiscount) {
+                        const basePrice = parseFloat(currentCheckoutEvent.price) * quantity;
+                        let discountAmount = 0;
+                        if (currentDiscount.type === 'percentage') {
+                            discountAmount = basePrice * (currentDiscount.value / 100);
+                        } else if (currentDiscount.type === 'fixed') {
+                            discountAmount = currentDiscount.value;
+                        }
+                        
+                        console.log(`Discount applied: ${currentDiscount.description}, saved: $${discountAmount.toFixed(2)}`);
+                    }
+        
+                    // Reset discount for next purchase
+                    currentDiscount = null;
+                    document.getElementById('discountCode').value = '';
+                    document.getElementById('discountResult').style.display = 'none';
+                    // ===== END ADD =====
+        
                     showSuccess(`Payment successful! ${quantity} ticket(s) have been added to your account.`);
                     closeCheckout();
                     loadEvents();
                     loadUserTickets();
                     document.querySelector('[data-tab="tickets"]').click();
-
                 } catch (error) {
                     console.error("Error creating ticket:", error);
                     showError("Failed to process payment. Please try again.");
@@ -1928,6 +1965,64 @@ Status: ${ticketData.status.toUpperCase()}`;
                 qty--;
                 display.dataset.qty = qty;
                 display.textContent = qty;
+            }
+        }
+        let currentDiscount = null;
+        
+        function applyCheckoutDiscount() {
+            const code = document.getElementById('discountCode').value.toUpperCase();
+            const resultDiv = document.getElementById('discountResult');
+        
+            if (!code) {
+                resultDiv.innerHTML = '<div style="background: #ffebee; padding: 1rem; border-radius: 8px; border: 2px solid #f44336;">❌ Please enter a discount code</div>';
+                resultDiv.style.display = 'block';
+                return;
+            }
+        
+            const discountCodes = {
+                'WELCOME10': { type: 'percentage', value: 10, description: '10% off' },
+                'WELCOME20': { type: 'percentage', value: 20, description: '20% off' },
+                'SAVE5': { type: 'fixed', value: 5, description: '$5 off' },
+                'SAVE10': { type: 'fixed', value: 10, description: '$10 off' },
+                'STUDENT': { type: 'percentage', value: 15, description: '15% student discount' }
+            };
+        
+            if (discountCodes[code]) {
+                currentDiscount = discountCodes[code];
+                resultDiv.innerHTML = `<div style="background: #e8f5e9; padding: 1rem; border-radius: 8px; border: 2px solid #4caf50;">✅ ${currentDiscount.description} applied!</div>`;
+                resultDiv.style.display = 'block';
+                
+                updateCheckoutTotal();
+                showSuccess(`Discount "${code}" applied!`);
+            } else {
+                resultDiv.innerHTML = '<div style="background: #ffebee; padding: 1rem; border-radius: 8px; border: 2px solid #f44336;">❌ Invalid discount code</div>';
+                resultDiv.style.display = 'block';
+                currentDiscount = null;
+            }
+        }
+        
+        function updateCheckoutTotal() {
+            const basePrice = parseFloat(document.getElementById('checkoutPrice').textContent.replace('$', ''));
+            const quantity = parseInt(document.getElementById('checkoutQuantity').textContent);
+            let subtotal = basePrice * quantity;
+            let discountAmount = 0;
+        
+            if (currentDiscount) {
+                if (currentDiscount.type === 'percentage') {
+                    discountAmount = subtotal * (currentDiscount.value / 100);
+                } else if (currentDiscount.type === 'fixed') {
+                    discountAmount = currentDiscount.value;
+                }
+            }
+        
+            const total = subtotal - discountAmount;
+        
+            document.getElementById('discountAmount').textContent = `-$${discountAmount.toFixed(2)}`;
+            document.getElementById('checkoutTotal').textContent = `$${total.toFixed(2)}`;
+        
+            if (discountAmount > 0) {
+                document.getElementById('checkoutTotalWithDiscount').textContent = `$${total.toFixed(2)}`;
+                document.getElementById('checkoutTotalWithDiscount').style.display = 'inline';
             }
         }
     </script>
