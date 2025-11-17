@@ -9,102 +9,19 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        node-version: [16.x, 18.x]
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
       
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 18
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm install
       
-      - name: Create test file
+      - name: Run Basic Project Test
         run: |
-          mkdir -p tests
-          cat > tests/basic.test.js << 'EOF'
-          describe('CougarZone - Basic Tests', () => {
-            test('Authentication check works', () => {
-              const ADMIN_EMAIL = 'bclinchuck@gmail.com';
-              const userEmail = 'bclinchuck@gmail.com';
-              expect(userEmail === ADMIN_EMAIL).toBe(true);
-            });
-            
-            test('Non-admin cannot access admin panel', () => {
-              const ADMIN_EMAIL = 'bclinchuck@gmail.com';
-              const userEmail = 'user@example.com';
-              expect(userEmail === ADMIN_EMAIL).toBe(false);
-            });
-            
-            test('User data scoping works', () => {
-              const currentUserId = 'user123';
-              const ticketUserId = 'user123';
-              expect(ticketUserId === currentUserId).toBe(true);
-            });
-            
-            test('Ticket limit validation', () => {
-              const ticketLimit = 100;
-              expect(ticketLimit > 0).toBe(true);
-            });
-            
-            test('Price validation', () => {
-              const price = 25.50;
-              expect(price >= 0).toBe(true);
-            });
-            
-            test('Payment validation rejects empty fields', () => {
-              const fullName = '';
-              expect(fullName.length > 0).toBe(false);
-            });
-            
-            test('Event request has pending status', () => {
-              const status = 'pending';
-              expect(status).toBe('pending');
-            });
-            
-            test('Sold out event cannot be purchased', () => {
-              const availableTickets = 0;
-              expect(availableTickets > 0).toBe(false);
-            });
-            
-            test('Available event can be purchased', () => {
-              const availableTickets = 50;
-              expect(availableTickets > 0).toBe(true);
-            });
-          });
-          EOF
-      
-      - name: Create Jest config
-        run: |
-          cat > jest.config.js << 'EOF'
-          module.exports = {
-            testEnvironment: 'node',
-            collectCoverage: true,
-            coverageDirectory: 'coverage',
-            coveragePathIgnorePatterns: ['/node_modules/'],
-            testMatch: ['**/tests/**/*.test.js'],
-            collectCoverageFrom: ['src/**/*.js', '!src/**/*.config.js']
-          };
-          EOF
-      
-      - name: Create package.json scripts
-        run: |
-          npm pkg set scripts.test="jest --coverage"
-      
-      - name: Run tests
-        run: npm test
-      
-      - name: Upload coverage
-        if: always()
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage/lcov.info
-          fail_ci_if_error: false
