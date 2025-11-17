@@ -348,15 +348,15 @@
                 <div class="form-group">
                     <label for="firstName">First Name</label>
                     <div class="input-wrapper">
-                        <span class="input-icon">❗</span>
-                        <input type="firstName" id="firstName" placeholder="John" required>
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="firstName" placeholder="John" required>
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="lastName">Last Name</label>
                     <div class="input-wrapper">
-                        <span class="input-icon">❗</span>
-                        <input type="lastName" id="lastName" placeholder="Doe" required>
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="lastName" placeholder="Doe" required>
                     </div>
                 </div>
                 <div class="form-group">
@@ -433,6 +433,7 @@
     <!-- Firebase scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     
     <script>
         const firebaseConfig = {
@@ -445,6 +446,7 @@
         };
         
         firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
         const signupForm = document.getElementById("signupForm");
         const errorMessage = document.getElementById("errorMessage");
@@ -534,6 +536,14 @@
                 // Create user account
                 const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
                 const user = userCredential.user;
+                
+                // Save user data to Firestore BEFORE sending email verification
+                await db.collection('users').doc(user.uid).set({
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: email,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
                 
                 // Send email verification
                 await user.sendEmailVerification();
