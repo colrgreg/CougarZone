@@ -175,6 +175,20 @@
             margin-bottom: 0.25rem;
         }
 
+        .event-capacity {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            background: #fff3e0;
+            padding: 0.5rem;
+            border-radius: 6px;
+        }
+
+        .event-capacity.full {
+            background: #ffebee;
+            color: #c62828;
+        }
+
         .event-price {
             font-size: 1.25rem;
             font-weight: bold;
@@ -768,7 +782,12 @@
 
                     <div class="form-group">
                         <label>First Name</label>
-                        <input type="text" id="displayNameInput" placeholder="Enter your first name">
+                        <input type="text" id="displayFirstNameInput" placeholder="Enter your first name">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Last Name</label>
+                        <input type="text" id="displayLastNameInput" placeholder="Enter your last name">
                     </div>
 
                     <button class="btn btn-primary btn-full" id="updateProfileBtn">Update Profile</button>
@@ -817,6 +836,10 @@
                         <div class="form-group">
                             <label>Price ($)</label>
                             <input type="number" id="eventPrice" placeholder="25.00" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Ticket Limit</label>
+                            <input type="number" id="eventTicketLimit" placeholder="100" min="1" required>
                         </div>
                     </div>
                     <div class="form-group">
@@ -871,6 +894,10 @@
                 <div class="checkout-item">
                     <span>Event Date:</span>
                     <span id="checkoutEventDate">-</span>
+                </div>
+                <div class="checkout-item">
+                    <span>Available Tickets:</span>
+                    <span id="checkoutAvailableTickets">-</span>
                 </div>
                 <div class="checkout-item">
                     <span>Price:</span>
@@ -1000,6 +1027,7 @@
         let currentUser = null;
         let currentCheckoutEvent = null;
         let userFirstName = '';
+        let userLastName = '';
 
         // Format time to 12-hour format
         function formatTime12Hour(time24) {
@@ -1054,7 +1082,9 @@
                 if (userDoc.exists) {
                     const data = userDoc.data();
                     userFirstName = data.firstName || '';
-                    document.getElementById('displayNameInput').value = userFirstName;
+                    userLastName = data.lastName || '';
+                    document.getElementById('displayFirstNameInput').value = userFirstName;
+                    document.getElementById('displayLastNameInput').value = userLastName;
                     document.getElementById('profileName').textContent = `${userFirstName}'s Profile`;
                     document.getElementById('welcomeMessage').textContent = `Welcome back, ${userFirstName}!`;
                 } else {
@@ -1099,13 +1129,13 @@
                             <div class="attendees-info" id="attendees-${doc.id}" onclick="showAttendees('${doc.id}', '${event.title}')">
                                 Loading attendees...
                             </div>
-                            <button class="btn btn-primary btn-full" onclick="openCheckout('${doc.id}')">
+                            <button class="btn btn-primary btn-full" id="purchase-btn-${doc.id}" onclick="openCheckout('${doc.id}')">
                                 Purchase Ticket
                             </button>
                         </div>
                     `;
                     eventsGrid.appendChild(eventCard);
-                    loadAttendeeCount(doc.id);
+                    loadAttendeeCountAndCapacity(doc.id);
                 });
             } catch (error) {
                 console.error("Error loading events:", error);
@@ -1113,17 +1143,32 @@
             }
         }
 
-        async function loadAttendeeCount(eventId) {
+        async function loadAttendeeCountAndCapacity(eventId) {
             try {
+                const eventDoc = await db.collection('events').doc(eventId).get();
+                const event = eventDoc.data();
+                const ticketLimit = event.ticketLimit || Infinity;
+
                 const snapshot = await db.collection('tickets')
                     .where('eventId', '==', eventId)
                     .where('status', '==', 'active')
                     .get();
 
                 const count = snapshot.size;
+                const availableTickets = ticketLimit === Infinity ? '∞' : (ticketLimit - count);
+                const isFull = ticketLimit !== Infinity && count >= ticketLimit;
+
                 const element = document.getElementById(`attendees-${eventId}`);
                 if (element) {
-                    element.innerHTML = `👥 ${count} ${count === 1 ? 'person' : 'people'} attending - Click to view`;
+                    element.innerHTML = `👥 ${count} ${count === 1 ? 'person' : 'people'} attending | ${availableTickets} tickets left - Click to view`;
+                }
+
+                const purchaseBtn = document.getElementById(`purchase-btn-${eventId}`);
+                if (purchaseBtn) {
+                    if (isFull) {
+                        purchaseBtn.disabled = true;
+                        purchaseBtn.textContent = 'Event Full';
+                    }
                 }
             } catch (error) {
                 console.error("Error loading attendees:", error);
@@ -1158,7 +1203,7 @@
                     const ticket = doc.data();
                     if (ticket.userId) {
                         if (!attendeeMap.has(ticket.userId)) {
-                            attendeeMap.set(ticket.userId, { name: 'Loading...', ticketCount: 0 });
+                            attendeeMap.set(ticket.userId, { firstName: 'Loading...', lastName: '', ticketCount: 0 });
                         }
                         const userData = attendeeMap.get(ticket.userId);
                         userData.ticketCount += 1;
@@ -1170,26 +1215,22 @@
                         const userDoc = await db.collection('users').doc(userId).get();
                         if (userDoc.exists) {
                             const userDataFromDb = userDoc.data();
-                            const firstName = userDataFromDb.firstName || '';
-                            const lastName = userDataFromDb.lastName || '';
-                            const fullName = `${firstName} ${lastName}`.trim();
-                            userData.name = fullName || 'User';
-                        } else {
-                            userData.name = 'User';
+                            userData.firstName = userDataFromDb.firstName || '';
+                            userData.lastName = userDataFromDb.lastName || '';
                         }
                     } catch (error) {
                         console.error("Error fetching user data for", userId, ":", error);
-                        userData.name = 'User';
                     }
                 }
 
                 attendeeMap.forEach((userData, userId) => {
-                    const initial = userData.name.charAt(0).toUpperCase();
+                    const fullName = `${userData.firstName} ${userData.lastName}`.trim();
+                    const initial = fullName.charAt(0).toUpperCase() || 'U';
                     const attendeeCard = document.createElement('div');
                     attendeeCard.className = 'attendee-card';
                     attendeeCard.innerHTML = `
                         <div class="attendee-avatar">${initial}</div>
-                        <div class="attendee-name">${userData.name}</div>
+                        <div class="attendee-name">${fullName || 'User'}</div>
                         <div class="attendee-tickets">📋 ${userData.ticketCount} ${userData.ticketCount === 1 ? 'ticket' : 'tickets'}</div>
                     `;
                     attendeesList.appendChild(attendeeCard);
@@ -1205,13 +1246,30 @@
         }
 
         function openCheckout(eventId) {
-            db.collection('events').doc(eventId).get().then(doc => {
+            db.collection('events').doc(eventId).get().then(async doc => {
                 if (doc.exists) {
                     const event = { id: doc.id, ...doc.data() };
+                    const ticketLimit = event.ticketLimit || Infinity;
+
+                    // Check available tickets
+                    const ticketSnapshot = await db.collection('tickets')
+                        .where('eventId', '==', eventId)
+                        .where('status', '==', 'active')
+                        .get();
+
+                    const ticketsSold = ticketSnapshot.size;
+                    const availableTickets = ticketLimit === Infinity ? Infinity : (ticketLimit - ticketsSold);
+
+                    if (availableTickets <= 0) {
+                        showError('This event is sold out!');
+                        return;
+                    }
+
                     currentCheckoutEvent = event;
 
                     document.getElementById('checkoutEventTitle').textContent = event.title;
                     document.getElementById('checkoutEventDate').textContent = `${event.date} at ${formatTime12Hour(event.time)}`;
+                    document.getElementById('checkoutAvailableTickets').textContent = availableTickets === Infinity ? 'Unlimited' : availableTickets;
                     const price = parseFloat(event.price).toFixed(2);
                     document.getElementById('checkoutPrice').textContent = `${price}`;
                     document.getElementById('checkoutTotal').textContent = `${price}`;
@@ -1379,37 +1437,28 @@
             db.collection('tickets').where('ticketCode', '==', ticketCode).limit(1).get().then(snapshot => {
                 if (!snapshot.empty) {
                     const ticketData = snapshot.docs[0].data();
+                    const ticketUserId = ticketData.userId;
                     
-                    const qrData = {
-                        ticketCode: ticketCode,
-                        firstName: currentUser.displayName || userFirstName || 'N/A',
-                        lastName: 'N/A',
-                        email: ticketData.userEmail,
-                        eventTitle: ticketData.eventTitle,
-                        eventDate: ticketData.eventDate,
-                        eventTime: ticketData.eventTime,
-                        eventLocation: ticketData.eventLocation,
-                        price: ticketData.price,
-                        status: ticketData.status
-                    };
+                    db.collection('users').doc(ticketUserId).get().then(userDoc => {
+                        let firstName = 'N/A';
+                        let lastName = 'N/A';
 
-                    db.collection('users').doc(ticketData.userId).get().then(userDoc => {
                         if (userDoc.exists) {
                             const userData = userDoc.data();
-                            qrData.firstName = userData.firstName || 'N/A';
-                            qrData.lastName = userData.lastName || 'N/A';
+                            firstName = userData.firstName || 'N/A';
+                            lastName = userData.lastName || 'N/A';
                         }
 
                         const qrString = `TICKET INFO
-Name: ${qrData.firstName} ${qrData.lastName}
-Email: ${qrData.email}
-Ticket ID: ${qrData.ticketCode}
-Event: ${qrData.eventTitle}
-Date: ${qrData.eventDate}
-Time: ${formatTime12Hour(qrData.eventTime)}
-Location: ${qrData.eventLocation}
-Price: ${qrData.price.toFixed(2)}
-Status: ${qrData.status.toUpperCase()}`;
+Name: ${firstName} ${lastName}
+Email: ${ticketData.userEmail}
+Ticket ID: ${ticketCode}
+Event: ${ticketData.eventTitle}
+Date: ${ticketData.eventDate}
+Time: ${formatTime12Hour(ticketData.eventTime)}
+Location: ${ticketData.eventLocation}
+Price: ${ticketData.price.toFixed(2)}
+Status: ${ticketData.status.toUpperCase()}`;
 
                         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrString)}`;
                         
@@ -1480,20 +1529,24 @@ Status: ${qrData.status.toUpperCase()}`;
         });
 
         document.getElementById('updateProfileBtn').addEventListener('click', async () => {
-            const firstName = document.getElementById('displayNameInput').value;
-            if (!firstName) {
-                showError('Please enter your first name');
+            const firstName = document.getElementById('displayFirstNameInput').value;
+            const lastName = document.getElementById('displayLastNameInput').value;
+            
+            if (!firstName || !lastName) {
+                showError('Please enter both first and last name');
                 return;
             }
 
             try {
                 await db.collection('users').doc(currentUser.uid).set({
                     firstName: firstName,
+                    lastName: lastName,
                     email: currentUser.email,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
 
                 userFirstName = firstName;
+                userLastName = lastName;
                 document.getElementById('welcomeMessage').textContent = `Welcome back, ${firstName}!`;
                 document.getElementById('profileName').textContent = `${firstName}'s Profile`;
                 showSuccess('Profile updated successfully!');
@@ -1524,6 +1577,7 @@ Status: ${qrData.status.toUpperCase()}`;
                     location: document.getElementById('eventLocation').value,
                     description: document.getElementById('eventDescription').value,
                     price: parseFloat(document.getElementById('eventPrice').value),
+                    ticketLimit: parseInt(document.getElementById('eventTicketLimit').value),
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
 
@@ -1564,7 +1618,7 @@ Status: ${qrData.status.toUpperCase()}`;
                         <div>
                             <h4>${event.emoji} ${event.title}</h4>
                             <p style="color: var(--text-light); font-size: 0.9rem;">
-                                📅 ${event.date} at ${formatTime12Hour(event.time)} | 📍 ${event.location} | ${parseFloat(event.price).toFixed(2)}
+                                📅 ${event.date} at ${formatTime12Hour(event.time)} | 📍 ${event.location} | ${parseFloat(event.price).toFixed(2)} | Limit: ${event.ticketLimit || '∞'} tickets
                             </p>
                         </div>
                         <button class="btn btn-danger" onclick="deleteEvent('${doc.id}', '${event.title}')">Delete</button>
@@ -1637,18 +1691,13 @@ Status: ${qrData.status.toUpperCase()}`;
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
 
-                console.log('Request data:', requestData);
-                
-                const docRef = await db.collection('eventRequests').add(requestData);
-                console.log('Request created with ID:', docRef.id);
+                await db.collection('eventRequests').add(requestData);
 
                 showSuccess('Event request submitted successfully! Admins will review it soon.');
                 e.target.reset();
                 loadUserEventRequests();
             } catch (error) {
-                console.error("Full error object:", error);
-                console.error("Error code:", error.code);
-                console.error("Error message:", error.message);
+                console.error("Error:", error);
                 showError('Failed to submit request: ' + error.message);
             } finally {
                 submitBtn.disabled = false;
@@ -1679,7 +1728,6 @@ Status: ${qrData.status.toUpperCase()}`;
 
                 snapshot.forEach(doc => {
                     const request = doc.data();
-                    const statusClass = request.status;
                     const statusText = request.status.charAt(0).toUpperCase() + request.status.slice(1);
 
                     let reasonText = '';
@@ -1707,7 +1755,7 @@ Status: ${qrData.status.toUpperCase()}`;
                 });
             } catch (error) {
                 console.error("Error loading requests:", error);
-                requestsHistory.innerHTML = '<div class="empty-state"><p>Error loading requests: ' + error.message + '</p></div>';
+                requestsHistory.innerHTML = '<div class="empty-state"><p>Error loading requests</p></div>';
             }
         }
 
@@ -1757,7 +1805,7 @@ Status: ${qrData.status.toUpperCase()}`;
                 });
             } catch (error) {
                 console.error("Error loading admin requests:", error);
-                adminList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Error loading requests: ' + error.message + '</h3></div>';
+                adminList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Error loading requests</h3></div>';
             }
         }
 
@@ -1773,11 +1821,9 @@ Status: ${qrData.status.toUpperCase()}`;
             if (!confirm('Approve this event request?')) return;
 
             try {
-                // Get the request data first
                 const requestDoc = await db.collection('eventRequests').doc(requestId).get();
                 const requestData = requestDoc.data();
 
-                // Create the event from the request
                 const eventData = {
                     title: requestData.title,
                     emoji: requestData.suggestedEmoji || '📅',
@@ -1786,12 +1832,12 @@ Status: ${qrData.status.toUpperCase()}`;
                     location: requestData.suggestedLocation || 'TD Arena',
                     description: requestData.description,
                     price: requestData.suggestedPrice || 0,
+                    ticketLimit: 100,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
 
                 await db.collection('events').add(eventData);
 
-                // Update request status
                 await db.collection('eventRequests').doc(requestId).update({
                     status: 'approved',
                     approvedAt: firebase.firestore.FieldValue.serverTimestamp()
